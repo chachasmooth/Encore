@@ -17,12 +17,12 @@
 
 Early development. You cannot use this as a monitor yet.
 
-The virtual display works. Nothing streams to it.
+The virtual display works and frames come off it. Nothing is sent anywhere yet.
 
 | Milestone | State |
 |---|---|
 | **1. Virtual display** | Working, verified on macOS 26.5 |
-| 2. Capture frames off that display | Not started |
+| **2. Capture frames off that display** | Working, verified on macOS 26.5 |
 | 3. Encode and send them over a cable | Not started |
 | 4. Client app that decodes and renders | Not started |
 | 5. One download, pick a role, done | Not started |
@@ -93,9 +93,9 @@ git clone https://github.com/chachasmooth/Understudy.git
 cd Understudy && swift build
 ```
 
-### Trying the virtual display
+### Trying it
 
-This part works today. The probe creates a Retina display, checks that macOS registered it at the right geometry, holds it open, then removes it.
+This part works today. The probe creates a Retina display, checks that macOS registered it at the right geometry, captures frames from it, then removes it.
 
 ```bash
 swift run understudy-probe 20
@@ -110,9 +110,22 @@ Verifying macOS sees it
   ✓ Backing resolution matches: 3024×1964 px
   ✓ Retina/HiDPI confirmed (2.0x scale)
   ✓ Reported as a secondary external display
+
+Capturing frames
+────────────────────────────────────────────
+  ✓ Screen Recording permission granted
+  ✓ Capture started
+  ✓ Frames are arriving
+  ✓ Frame size matches the display: 3024×1964 px
+  ✓ Frames contain real pixels (peak 153, mean 0.0013)
+    45 frames with new content, 124 unchanged
 ```
 
-Open System Settings > Displays while it runs and you will find a second monitor listed. Windows dragged onto it disappear, since nothing is streaming them anywhere yet.
+The first captured frame is saved as a PNG and the probe prints its path, so you can open it and see exactly what came back.
+
+Two things surprise people here. A freshly created display has no wallpaper on it, so that PNG is mostly black with only a menu bar across the top, and that is correct rather than broken. An idle screen also produces very few frames with new content, because ScreenCaptureKit sends one only when something actually changes.
+
+Open System Settings > Displays while it runs and you will find a second monitor listed. Windows dragged onto it vanish from view, since nothing is being sent to another Mac yet.
 
 ## Caveats
 
@@ -127,7 +140,7 @@ One more limitation, this one unexplained so far: a process can create a single 
 ## Roadmap
 
 - [x] Create a Retina virtual display and confirm macOS accepts it
-- [ ] Capture the virtual display with ScreenCaptureKit
+- [x] Capture the virtual display with ScreenCaptureKit
 - [ ] Hardware HEVC encode, tuned for latency ahead of quality
 - [ ] Wired transport over Thunderbolt Bridge
 - [ ] Client app decoding and rendering fullscreen through Metal

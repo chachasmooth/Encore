@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import CoreImage
 import CoreVideo
 import Foundation
 import UnderstudyKit
@@ -29,32 +30,58 @@ func note(_ text: String) { print("    \(text)") }
 // existed — and a bare run loop never refreshes it. A real GUI app is unaffected
 // because it creates its displays after NSApp is already running.
 
-/// Average brightness of a BGRA frame, 0 for black and 1 for white.
+/// Brightness summary of a BGRA frame.
 ///
-/// Exists to catch the case that looks most like success: without Screen
-/// Recording permission macOS still delivers frames at the right size, they are
-/// just entirely black.
-func meanBrightness(_ buffer: CVPixelBuffer) -> Double {
+/// `peak` is what actually distinguishes a working capture from a broken one.
+/// Without Screen Recording permission macOS still delivers correctly sized
+/// frames, but every channel is zero. A working capture of an *empty* virtual
+/// display is also nearly black, because a display with no wallpaper and no
+/// windows on it really is black apart from the menu bar, so `mean` stays near
+/// zero in both cases and cannot tell them apart. A non-zero peak can only come
+/// from real pixels.
+func frameBrightness(_ buffer: CVPixelBuffer) -> (mean: Double, peak: Int) {
     CVPixelBufferLockBaseAddress(buffer, .readOnly)
     defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
-    guard let base = CVPixelBufferGetBaseAddress(buffer) else { return 0 }
+    guard let base = CVPixelBufferGetBaseAddress(buffer) else { return (0, 0) }
 
     let width = CVPixelBufferGetWidth(buffer)
     let height = CVPixelBufferGetHeight(buffer)
     let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
     let pixels = base.assumingMemoryBound(to: UInt8.self)
 
-    // Sampling a grid. Six million pixels is far more than "is this black?" needs.
+    // Sampling a grid. Six million pixels is far more than this question needs.
     var total = 0.0
+    var peak = 0
     var samples = 0
-    for y in stride(from: 0, to: height, by: 16) {
-        for x in stride(from: 0, to: width, by: 16) {
+    for y in stride(from: 0, to: height, by: 8) {
+        for x in stride(from: 0, to: width, by: 8) {
             let offset = y * bytesPerRow + x * 4
-            total += (Double(pixels[offset]) + Double(pixels[offset + 1]) + Double(pixels[offset + 2])) / 3
+            let b = Int(pixels[offset]), g = Int(pixels[offset + 1]), r = Int(pixels[offset + 2])
+            peak = max(peak, max(r, max(g, b)))
+            total += Double(r + g + b) / 3
             samples += 1
         }
     }
-    return samples > 0 ? total / Double(samples) / 255 : 0
+    return (samples > 0 ? total / Double(samples) / 255 : 0, peak)
+}
+
+/// Writes a frame to a PNG and returns where it went.
+///
+/// Being able to look at what was actually captured is what turned "the frames
+/// are black" from a guess into an answer, so the probe always leaves one behind.
+func saveFrame(_ buffer: CVPixelBuffer) -> String? {
+    let image = CIImage(cvPixelBuffer: buffer)
+    guard let cgImage = CIContext().createCGImage(image, from: image.extent),
+          let data = NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:])
+    else { return nil }
+
+    let url = FileManager.default.temporaryDirectory.appendingPathComponent("understudy-frame.png")
+    do {
+        try data.write(to: url)
+        return url.path
+    } catch {
+        return nil
+    }
 }
 
 /// Runs the run loop for a while so pending notifications land.
@@ -180,7 +207,8 @@ if !ScreenRecordingPermission.isGranted {
     // Frames arrive on a background queue, so everything they touch is locked.
     let lock = NSLock()
     var frameCount = 0
-    var firstFrame: (width: Int, height: Int, brightness: Double)?
+    var firstFrame: (width: Int, height: Int, mean: Double, peak: Int)?
+    var savedFramePath: String?
     var startFinished = false
     var startError: Error?
 
@@ -191,11 +219,15 @@ if !ScreenRecordingPermission.isGranted {
         lock.unlock()
 
         guard needsMeasurement else { return }
-        let measured = (CVPixelBufferGetWidth(buffer),
-                        CVPixelBufferGetHeight(buffer),
-                        meanBrightness(buffer))
+        let brightness = frameBrightness(buffer)
+        let measured = (CVPixelBufferGetWidth(buffer), CVPixelBufferGetHeight(buffer),
+                        brightness.mean, brightness.peak)
+        let path = saveFrame(buffer)
         lock.lock()
-        if firstFrame == nil { firstFrame = measured }
+        if firstFrame == nil {
+            firstFrame = measured
+            savedFramePath = path
+        }
         lock.unlock()
     }, completion: { error in
         lock.lock()
@@ -225,7 +257,11 @@ if !ScreenRecordingPermission.isGranted {
         note("open System Settings > Displays or drag a window onto it to see it.")
         pump(holdSeconds)
 
-        lock.lock(); let frames = frameCount; let first = firstFrame; lock.unlock()
+        lock.lock()
+        let frames = frameCount
+        let first = firstFrame
+        let framePath = savedFramePath
+        lock.unlock()
         let idle = capture.idleFrameCount
         capture.stop()
 
@@ -240,12 +276,23 @@ if !ScreenRecordingPermission.isGranted {
                 problems += 1
             }
 
-            if first.brightness > 0.01 {
-                pass(String(format: "Frames contain an image (mean brightness %.3f)", first.brightness))
+            // Peak, not mean. A virtual display with no wallpaper and no windows
+            // on it is genuinely almost black, so its mean brightness looks
+            // identical to a permission failure. Only a non-zero peak proves
+            // real pixels came back.
+            if first.peak > 32 {
+                pass(String(format: "Frames contain real pixels (peak %d, mean %.4f)",
+                            first.peak, first.mean))
             } else {
-                fail("Frames are black, which usually means Screen Recording permission "
-                     + "is granted to a different app than the one running this")
+                fail("Frames are entirely black (peak \(first.peak))")
+                note("Usually means Screen Recording permission belongs to a different app")
+                note("than the one running this. Check the saved frame below to be sure.")
                 problems += 1
+            }
+
+            if let framePath {
+                note("First frame written to \(framePath)")
+                note("Open it to see exactly what was captured.")
             }
         } else {
             fail("No frames with new content arrived in \(Int(holdSeconds))s")

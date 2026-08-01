@@ -57,8 +57,14 @@ public final class DisplayCapture: NSObject {
     private let outputQueue = DispatchQueue(label: "com.understudy.capture", qos: .userInteractive)
 
     private var stream: SCStream?
+    /// Only ever touched on `outputQueue`, since the delivery callback reads it
+    /// there while `start`/`stop` would otherwise write it from another thread.
     private var onFrame: ((CVPixelBuffer) -> Void)?
     private var _idleFrameCount = 0
+    /// Set synchronously in `start`, unlike `stream` which is assigned inside a
+    /// Task. Without it two quick calls to `start` both pass the guard and the
+    /// second stream silently orphans the first, which then captures forever.
+    private var started = false
 
     /// Frames ScreenCaptureKit delivered with nothing new to show. A static
     /// desktop produces these almost exclusively, so a low delivered-frame count
@@ -82,11 +88,14 @@ public final class DisplayCapture: NSObject {
     /// Callback-based rather than async because the only caller today is a
     /// command-line tool driving a run loop, and mixing the two deadlocks. An
     /// async wrapper can be added when something actually wants one.
+    ///
+    /// Call `start` and `stop` from a single thread.
     public func start(onFrame: @escaping (CVPixelBuffer) -> Void,
                       completion: @escaping (Error?) -> Void) {
-        guard stream == nil else { return completion(CaptureError.alreadyRunning) }
+        guard !started else { return completion(CaptureError.alreadyRunning) }
         guard ScreenRecordingPermission.isGranted else { return completion(CaptureError.permissionDenied) }
-        self.onFrame = onFrame
+        started = true
+        outputQueue.async { self.onFrame = onFrame }
 
         Task {
             do {
@@ -120,15 +129,21 @@ public final class DisplayCapture: NSObject {
                 self.stream = stream
                 completion(nil)
             } catch {
+                // Reset so a caller can fix the problem and try again. The
+                // callback is deliberately left in place: no stream was created,
+                // so nothing can invoke it, and clearing it here would mean
+                // touching queue-owned state from inside this Task.
+                started = false
                 completion(error)
             }
         }
     }
 
     public func stop(completion: @escaping () -> Void = {}) {
+        started = false
+        outputQueue.async { self.onFrame = nil }
         guard let stream else { return completion() }
         self.stream = nil
-        self.onFrame = nil
         Task {
             try? await stream.stopCapture()
             completion()

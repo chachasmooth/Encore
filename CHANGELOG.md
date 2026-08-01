@@ -24,6 +24,15 @@ Understudy cannot yet be used as a display. This entry covers foundational work.
   for checking after macOS updates.
 - Project documentation, CI, and contribution guidelines.
 
+- `DisplayCapture` pulls frames off a display with ScreenCaptureKit. Verified
+  delivering 3024×1964 BGRA frames from the virtual display on macOS 26.5.
+  Frames carrying no new content are counted rather than delivered, since a
+  static desktop would otherwise be re-encoded for nothing.
+- `ScreenRecordingPermission` checks and requests the permission ScreenCaptureKit
+  needs. Without it macOS still returns correctly sized frames that are entirely
+  black, so the probe tests peak pixel value rather than average brightness and
+  writes the first frame to a PNG for inspection.
+
 ### Changed
 
 - Licensed under GPL-3.0 instead of MIT, so modified versions distributed to

@@ -117,20 +117,40 @@ can drive several spare MacBooks at once.
 **DRM content captures as black.** ScreenCaptureKit refuses protected content.
 Unfixable.
 
+## Capture
+
+`DisplayCapture` runs an `SCStream` filtered to the virtual display's ID,
+delivering `CVPixelBuffer`s on a dedicated queue rather than the main one, so a
+slow consumer stalls capture instead of the interface.
+
+Two behaviours are worth knowing before debugging anything here.
+
+**Most frames carry nothing new.** ScreenCaptureKit attaches a status to every
+frame and only `.complete` means fresh content. An idle desktop produces mostly
+non-complete frames, so a low delivered-frame count on a static screen is
+correct rather than a fault. `DisplayCapture` counts those separately in
+`idleFrameCount` and does not pass them on, because re-encoding an unchanged
+screen spends bandwidth for no visible gain.
+
+**A missing permission looks like success.** Without Screen Recording access
+macOS still starts the stream and still delivers frames at exactly the right
+size. Every pixel is simply zero. Average brightness cannot detect this, because
+a newly created virtual display has no wallpaper and no windows on it, so a
+perfectly good capture of one also averages near zero. The probe therefore tests
+the *peak* pixel value, which only real content can raise, and writes the first
+frame to a PNG so the question can be settled by looking.
+
 ## Planned pipeline
 
-Milestones 2–4, not yet built:
+Milestones 3 and 4, not yet built:
 
-1. **Capture** — `ScreenCaptureKit` filtered to the virtual display's ID,
-   delivering `CVPixelBuffer`s on a dedicated queue. Frames arrive only when
-   something changes, so an idle screen costs nothing.
-2. **Encode** — `VideoToolbox` hardware HEVC. Low-latency mode, no B-frames,
+1. **Encode** — `VideoToolbox` hardware HEVC. Low-latency mode, no B-frames,
    real-time priority. Quality is traded for latency deliberately.
-3. **Transport** — length-prefixed frames over TCP on the Thunderbolt Bridge
+2. **Transport** — length-prefixed frames over TCP on the Thunderbolt Bridge
    interface. A direct cable gives 10 Gbps and near-zero loss, so the first
    implementation needs no congestion control or retransmission — complexity
    that only wireless will require.
-4. **Render** — hardware decode into a `CAMetalLayer`, presented fullscreen.
+3. **Render** — hardware decode into a `CAMetalLayer`, presented fullscreen.
 
 The latency target is **under 30 ms glass-to-glass**. Past roughly 60 ms it
 stops feeling like a monitor and starts feeling like screen sharing, which is
