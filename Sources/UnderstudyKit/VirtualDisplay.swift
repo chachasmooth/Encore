@@ -10,7 +10,7 @@ import Foundation
 /// `scaleFactor` gives the real pixel count that has to be encoded and sent.
 /// Matching a preset to the client's native panel avoids a resampling step and
 /// keeps text crisp.
-public struct DisplayPreset: Sendable, Equatable {
+public struct DisplayPreset: Sendable, Hashable {
     public let name: String
     public let pointWidth: UInt32
     public let pointHeight: UInt32

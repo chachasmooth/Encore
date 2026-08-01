@@ -26,7 +26,7 @@ The whole pipeline works and has run across two Macs over Wi-Fi: an M5 MacBook A
 | **3. Encode and decode as HEVC** | Working, verified on macOS 26.5 |
 | **4. Send frames over the network** | Working, verified across two Macs |
 | **5. Client that displays them fullscreen** | Working, verified across two Macs |
-| 6. One download, pick a role, done | Not started |
+| **6. One app, pick a role, done** | Working, unsigned so it needs one command to open |
 
 Star the repo if you want to hear when it works end to end.
 
@@ -116,23 +116,31 @@ cd Understudy && swift build
 
 ## Using it
 
-Two command-line tools for now. On the Mac you want to extend:
+Download `Understudy.app` from [Releases](https://github.com/chachasmooth/Understudy/releases), drag it to Applications, and clear the quarantine flag:
 
 ```bash
-swift run understudy-host 13
+xattr -dr com.apple.quarantine /Applications/Understudy.app
 ```
 
-The number is the size of the spare MacBook's screen: `13`, `13.6`, `15`, `14` or `16`. It prints a six digit pairing code.
+That command is needed because Understudy is not signed with an Apple Developer certificate, which costs $99 a year and this is a hobby project. macOS refuses to open unidentified downloads without it. The source is right here if you would rather read it than trust it, and building it yourself skips the whole issue.
 
-Then on the spare MacBook, with the repository cloned there too:
+Open the app on both Macs. On the one you want to extend, choose **Extend this Mac** and pick which MacBook is acting as the screen. It shows a six digit code. On the spare, choose **Be the second screen** and enter that code. It goes fullscreen and starts drawing. Escape leaves fullscreen.
+
+The host Mac will ask for Screen Recording permission the first time, and the spare will ask for Local Network access. Both are required.
+
+### Building it yourself
 
 ```bash
-swift run understudy-client 123456
+git clone https://github.com/chachasmooth/Understudy.git
 ```
 
-It finds the host on the network, pairs, and fills the screen. Escape or Q quits.
+```bash
+cd Understudy && ./Tools/build-app.sh
+```
 
-Set `UNDERSTUDY_WINDOWED=1` to run the client in an ordinary window instead of fullscreen, which is the only sane way to test both halves on a single Mac.
+That produces `build/Understudy.app`, already signed for local use, plus a zip. Xcode is not required; Command Line Tools are enough.
+
+There are also command-line versions, `understudy-host` and `understudy-client`, which are what the app wraps.
 
 ### Trying it
 

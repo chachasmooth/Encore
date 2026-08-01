@@ -7,6 +7,7 @@ let package = Package(
     products: [
         .library(name: "UnderstudyKit", targets: ["UnderstudyKit"]),
         .executable(name: "understudy-probe", targets: ["understudy-probe"]),
+        .executable(name: "Understudy", targets: ["Understudy"]),
         .executable(name: "understudy-host", targets: ["understudy-host"]),
         .executable(name: "understudy-client", targets: ["understudy-client"]),
     ],
@@ -24,6 +25,12 @@ let package = Package(
         ),
         .executableTarget(
             name: "understudy-probe",
+            dependencies: ["UnderstudyKit"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        // The app. Both roles in one bundle, chosen on launch.
+        .executableTarget(
+            name: "Understudy",
             dependencies: ["UnderstudyKit"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),

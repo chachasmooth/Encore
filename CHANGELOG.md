@@ -59,6 +59,14 @@ Understudy cannot yet be used as a display. This entry covers foundational work.
   frames fullscreen through `AVSampleBufferDisplayLayer`. Verified with both ends
   running as separate processes on one Mac.
 
+- `Understudy.app`: both roles in one bundle, chosen on launch, with the pairing
+  code shown on screen instead of in a terminal. `Tools/build-app.sh` produces it
+  with Command Line Tools alone; Xcode turned out not to be required. Signing is
+  ad-hoc, which gives the app its own identity for permissions but leaves
+  Gatekeeper needing the quarantine flag cleared by hand.
+- `HostSession` and `ClientSession` hold the pipelines the app and the
+  command-line tools share, so both run one implementation rather than two.
+
 ### Fixed
 
 - The `macBookAir13` preset described the 13.6-inch M2 Air (2560×1664) while
