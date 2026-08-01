@@ -13,7 +13,7 @@
 
 - [ ] `swift build` succeeds
 - [ ] `swift test` passes
-- [ ] `swift run understudy-probe` passes all checks — **macOS version:**
+- [ ] `swift run understudy-probe` passes all checks. **macOS version:**
 - [ ] Not applicable
 
 ## Checklist

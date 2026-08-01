@@ -6,7 +6,7 @@ body:
     attributes:
       value: |
         Please check the [roadmap](https://github.com/chachasmooth/Understudy#roadmap)
-        first — the core streaming pipeline is already planned and tracked there.
+        first. The core streaming pipeline is already planned and tracked there.
 
   - type: textarea
     id: problem

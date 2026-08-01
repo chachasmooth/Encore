@@ -9,7 +9,7 @@ typedef NS_ERROR_ENUM(USVirtualDisplayErrorDomain, USVirtualDisplayError) {
     /// The private CoreGraphics classes were not found at runtime. Expected if
     /// Apple removes or renames them in a future macOS release.
     USVirtualDisplayErrorUnsupportedOS = 1,
-    /// The classes were found but did not respond to the selectors we need,
+    /// The classes were found but did not respond to the selectors Understudy needs,
     /// meaning Apple changed the API shape.
     USVirtualDisplayErrorIncompatibleAPI = 2,
     /// Object allocation failed.

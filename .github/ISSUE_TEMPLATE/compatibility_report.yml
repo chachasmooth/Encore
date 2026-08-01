@@ -1,5 +1,5 @@
 name: macOS compatibility report
-description: Tell us whether the virtual display works on your macOS version
+description: Tell me whether the virtual display works on your macOS version
 labels: [compatibility]
 title: "Compatibility: macOS "
 body:
@@ -7,7 +7,7 @@ body:
     attributes:
       value: |
         Understudy relies on private Apple API that can change between releases.
-        Reports are valuable **whether or not it worked** — a confirmed-working
+        Reports are valuable **whether or not it worked**. A confirmed-working
         version is just as useful as a broken one.
 
         Run this and paste the output below:

@@ -15,8 +15,8 @@ cd Understudy && swift build && swift test
 
 You need macOS 14 or later. Xcode Command Line Tools are enough to build the
 library and run the probe. **`swift test` additionally requires full Xcode**,
-because XCTest is not part of Command Line Tools — if you only have the latter,
-CI will run the tests for you on your pull request. Full Xcode will also be
+because XCTest is not part of Command Line Tools. If you only have the
+latter, CI will run the tests for you on your pull request. Full Xcode will also be
 needed once app bundles arrive in milestone 5.
 
 To check the virtual display works on your machine:
@@ -35,7 +35,7 @@ genuinely open questions worth investigating:
   releasing the first fails. Working out why would unblock support for several
   spare MacBooks.
 - **Testing on other macOS versions.** Understudy is verified on macOS 26.5.
-  Reports from 14.x and 15.x are valuable — run the probe and open an issue with
+  Reports from 14.x and 15.x are valuable. Run the probe and open an issue with
   the output either way.
 
 ## Working with the private API
@@ -69,7 +69,7 @@ clang -fobjc-arc -framework Foundation Tools/dump-private-api.m -o /tmp/dump && 
 ## Tests
 
 `swift test` runs in CI on headless GitHub runners, which have **no display
-server**. Tests must therefore be pure logic — anything that creates a real
+server**. Tests must therefore be pure logic. Anything that creates a real
 display will fail there. Hardware-dependent verification belongs in
 `understudy-probe`, run manually.
 
@@ -84,7 +84,7 @@ display will fail there. Hardware-dependent verification belongs in
 ## Reporting bugs
 
 Use the issue templates. For anything display-related, include the full output
-of `swift run understudy-probe` and your macOS version — that output is designed
+of `swift run understudy-probe` and your macOS version. That output is designed
 to answer most of the questions a maintainer would otherwise have to ask.
 
 ## Security

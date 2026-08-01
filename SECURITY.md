@@ -14,8 +14,8 @@ which is the preferred route.
 
 Please include what the issue is, how to reproduce it, and what an attacker
 could achieve. You'll get an acknowledgement within a few days. This is a hobby
-project maintained in spare time, so please be patient with fix timelines — but
-credible reports will be taken seriously, and you'll be credited in the advisory
+project maintained in spare time, so please be patient with fix timelines. I
+take credible reports seriously, and you'll be credited in the advisory
 unless you'd rather not be.
 
 ## Threat model
@@ -30,8 +30,8 @@ Understudy is worth thinking about carefully, because of what it handles:
   and authentication are on the roadmap and are treated as security-relevant,
   not as polish.
 - **It uses private system API.** This is a stability and compatibility risk
-  rather than a security one — the calls create a display and do not elevate
-  privileges — but it is worth knowing about.
+  rather than a security one. The calls create a display and do not elevate
+  privileges, though it is still worth knowing about.
 
 Understudy does not phone home, collect analytics, or make outbound network
 connections other than to a client Mac you have paired with.
@@ -39,5 +39,5 @@ connections other than to a client Mac you have paired with.
 ## Out of scope
 
 - The fact that Understudy relies on undocumented Apple API. This is a known,
-  documented design constraint — see [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+  documented design constraint. See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 - Anything requiring an attacker to already have admin access to your Mac.

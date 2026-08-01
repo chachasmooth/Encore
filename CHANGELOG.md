@@ -11,16 +11,16 @@ Understudy cannot yet be used as a display. This entry covers foundational work.
 
 ### Added
 
-- `USVirtualDisplay` — creates a virtual monitor that macOS treats as real
+- `USVirtualDisplay` creates a virtual monitor that macOS treats as real
   hardware, via private CoreGraphics API. Verified producing a Retina display of
   1512×982 points backed by 3024×1964 pixels on macOS 26.5.
-- `VirtualDisplay` and `DisplayPreset` — Swift API with presets matching the
+- `VirtualDisplay` and `DisplayPreset`, a Swift API with presets matching the
   native geometry of recent MacBook panels.
-- `DisplayInfoReader` — reads display geometry across three CoreGraphics and
+- `DisplayInfoReader` reads display geometry across three CoreGraphics and
   AppKit APIs, each of which is unreliable in a different way.
-- `understudy-probe` — diagnostic CLI that creates a display, verifies macOS
+- `understudy-probe` is a diagnostic CLI that creates a display, verifies macOS
   registered it at the requested geometry, and confirms clean teardown.
-- `Tools/dump-private-api.m` — prints live signatures of Apple's private classes,
+- `Tools/dump-private-api.m` prints live signatures of Apple's private classes,
   for checking after macOS updates.
 - Project documentation, CI, and contribution guidelines.
 

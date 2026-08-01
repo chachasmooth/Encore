@@ -1,9 +1,9 @@
 # Code of Conduct
 
-## Our pledge
+## My pledge
 
-We want Understudy to be a welcoming project for anyone who wants to contribute,
-regardless of experience level, background, or identity.
+I want Understudy to be a welcoming project for anyone who wants to contribute,
+whatever their experience level, background, or identity.
 
 ## Expected behaviour
 
@@ -22,15 +22,14 @@ regardless of experience level, background, or identity.
 
 ## Scope
 
-This applies to all project spaces — issues, pull requests, discussions — and to
-anyone representing the project publicly.
+This applies everywhere the project lives: issues, pull requests, discussions,
+and anywhere someone is representing Understudy publicly.
 
 ## Enforcement
 
-Report problems to the maintainer via
-[GitHub](https://github.com/chachasmooth). Reports will be handled
-confidentially. Maintainers may remove comments, close discussions, or block
-accounts as needed.
+Report problems to me via [GitHub](https://github.com/chachasmooth). I will
+handle reports confidentially, and may remove comments, close discussions, or
+block accounts where it seems warranted.
 
 ## Attribution
 
