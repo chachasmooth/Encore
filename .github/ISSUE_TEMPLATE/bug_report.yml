@@ -1,0 +1,55 @@
+name: Bug report
+description: Something doesn't work
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting. Understudy talks to undocumented macOS API, so the
+        probe output below usually explains the problem immediately.
+
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: What did you expect, and what happened instead?
+    validations:
+      required: true
+
+  - type: textarea
+    id: probe-output
+    attributes:
+      label: Probe output
+      description: |
+        Run `swift run understudy-probe 5` and paste the full output.
+        This is the single most useful thing you can include.
+      render: shell
+    validations:
+      required: false
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      description: Apple menu > About This Mac, or run `sw_vers -productVersion`
+      placeholder: "26.5.2"
+    validations:
+      required: true
+
+  - type: input
+    id: hardware
+    attributes:
+      label: Mac model
+      placeholder: "MacBook Pro 14-inch, M3"
+    validations:
+      required: false
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      placeholder: |
+        1. Run ...
+        2. ...
+    validations:
+      required: false

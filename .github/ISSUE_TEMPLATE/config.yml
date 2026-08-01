@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Questions and ideas
+    url: https://github.com/chachasmooth/Understudy/discussions
+    about: Ask a question or discuss an idea before opening an issue.
+  - name: Report a security issue
+    url: https://github.com/chachasmooth/Understudy/security/advisories/new
+    about: Please report vulnerabilities privately, not as public issues.

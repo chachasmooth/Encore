@@ -1,0 +1,43 @@
+# Swift Package Manager
+.build/
+.swiftpm/
+Package.resolved
+*.xcodeproj
+*.xcworkspace
+
+# Build products
+DerivedData/
+build/
+dist/
+*.app
+*.dmg
+*.zip
+
+# Xcode user state
+xcuserdata/
+*.xcuserstate
+*.xcscmblueprint
+
+# Signing material — never commit these
+*.p12
+*.cer
+*.provisionprofile
+notarization-credentials.json
+
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon?
+._*
+
+# Editors
+.vscode/
+.idea/
+*.swp
+*~
+
+# Logs and scratch
+*.log
+scratch/
+tmp/

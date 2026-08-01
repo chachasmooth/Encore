@@ -1,0 +1,53 @@
+name: macOS compatibility report
+description: Tell us whether the virtual display works on your macOS version
+labels: [compatibility]
+title: "Compatibility: macOS "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Understudy relies on private Apple API that can change between releases.
+        Reports are valuable **whether or not it worked** — a confirmed-working
+        version is just as useful as a broken one.
+
+        Run this and paste the output below:
+
+        ```
+        swift run understudy-probe 5
+        ```
+
+  - type: input
+    id: macos-version
+    attributes:
+      label: macOS version
+      placeholder: "15.2"
+    validations:
+      required: true
+
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options:
+        - All checks passed
+        - Some checks failed
+        - Private API missing entirely
+        - Crashed
+    validations:
+      required: true
+
+  - type: textarea
+    id: probe-output
+    attributes:
+      label: Probe output
+      render: shell
+    validations:
+      required: true
+
+  - type: input
+    id: hardware
+    attributes:
+      label: Mac model
+      placeholder: "MacBook Air 13-inch, M2"
+    validations:
+      required: false
