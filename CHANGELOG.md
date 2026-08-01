@@ -24,6 +24,11 @@ Understudy cannot yet be used as a display. This entry covers foundational work.
   for checking after macOS updates.
 - Project documentation, CI, and contribution guidelines.
 
+### Changed
+
+- Licensed under GPL-3.0 instead of MIT, so modified versions distributed to
+  others have to stay open source.
+
 ### Known limitations
 
 - Only one virtual display per process. Creating a second after releasing the

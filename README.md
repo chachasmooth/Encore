@@ -5,7 +5,7 @@
 **Turn a spare MacBook into a second display for your Mac.**
 
 [![CI](https://github.com/chachasmooth/Understudy/actions/workflows/ci.yml/badge.svg)](https://github.com/chachasmooth/Understudy/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey.svg)](#requirements)
 [![Status](https://img.shields.io/badge/status-early%20development-orange.svg)](#status)
 
@@ -145,4 +145,10 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Compatibility reports are useful even wh
 
 ## License
 
-[MIT](LICENSE)
+[GPL-3.0](LICENSE).
+
+Use it, change it, share it. If you distribute a modified version, you have to
+release your changes under the same licence. That keeps Understudy open, and
+stops anyone shipping a closed commercial fork of it.
+
+Copyright (C) 2026 Understudy contributors
