@@ -15,7 +15,7 @@
 
 ## Status
 
-Early development. You cannot use this as a monitor yet.
+Early development, but it works. You can use a spare MacBook as a second display today, if you are willing to run two terminal commands.
 
 The whole pipeline works and has run across two Macs over Wi-Fi: an M5 MacBook Air streaming to an M1 Air, 47 to 49 fps with no dropped frames, peaking at 51 Mb/s while a window was dragged around. It is still two command-line tools rather than an app you can double-click.
 
