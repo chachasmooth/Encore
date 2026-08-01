@@ -340,6 +340,17 @@ if !captureVerified {
         var sourceStats: (mean: Double, peak: Int)?
         var decodedStats: (width: Int, height: Int, mean: Double, peak: Int)?
         var frameIndex: Int64 = 0
+        // Rebuilt on the receiving side of the wire format, exactly as a client
+        // would have to. Nil until the parameter sets have been through it.
+        var wireFormat: CMFormatDescription?
+        var wireBytes = 0
+        var wireFrames = 0
+
+        func record(_ problem: String) {
+            lock.lock()
+            if firstError == nil { firstError = problem }
+            lock.unlock()
+        }
 
         let capture = DisplayCapture(displayID: display.displayID,
                                      pixelWidth: Int(preset.pixelWidth),
@@ -370,10 +381,68 @@ if !captureVerified {
                     encodedBytes += sample.encodedByteCount
                     encodeNanos += encodeEnd - encodeStart
                     if sample.isKeyframe { keyframes += 1 }
+                    let needsParameters = wireFormat == nil
                     lock.unlock()
 
+                    // Serialise the frame into the exact bytes the network will
+                    // carry, then read it back the way a client must. Decoding
+                    // the encoder's own sample buffer would skip all of this and
+                    // prove nothing about the wire format.
+                    guard let format = CMSampleBufferGetFormatDescription(sample),
+                          let payload = sample.encodedData else {
+                        record("could not read the encoded frame")
+                        return
+                    }
+
+                    var wire = Data()
+                    if needsParameters {
+                        guard let parameters = VideoParameterSets(formatDescription: format) else {
+                            record("could not extract HEVC parameter sets")
+                            return
+                        }
+                        wire.append(StreamMessage.parameters(parameters).encoded())
+                    }
+                    wire.append(StreamMessage.frame(
+                        data: payload,
+                        presentationTime: CMSampleBufferGetPresentationTimeStamp(sample),
+                        isKeyframe: sample.isKeyframe).encoded())
+
+                    lock.lock(); wireBytes += wire.count; lock.unlock()
+
+                    var rebuilt: CMSampleBuffer?
+                    do {
+                        while let message = try StreamMessage.decode(from: &wire) {
+                            switch message {
+                            case .parameters(let parameters):
+                                guard let received = parameters.makeFormatDescription() else {
+                                    record("could not rebuild the format description from the wire")
+                                    return
+                                }
+                                lock.lock(); wireFormat = received; lock.unlock()
+
+                            case .frame(let data, let time, _):
+                                lock.lock(); let received = wireFormat; lock.unlock()
+                                guard let received else {
+                                    record("a frame arrived before any parameter sets")
+                                    return
+                                }
+                                rebuilt = CMSampleBuffer.makeEncodedFrame(
+                                    data: data, formatDescription: received, presentationTime: time)
+                            }
+                        }
+                    } catch {
+                        record("wire format: \(error.localizedDescription)")
+                        return
+                    }
+
+                    guard let rebuilt else {
+                        record("nothing came back out of the wire format")
+                        return
+                    }
+                    lock.lock(); wireFrames += 1; lock.unlock()
+
                     let decodeStart = DispatchTime.now().uptimeNanoseconds
-                    decoder.decode(sample) { decoded in
+                    decoder.decode(rebuilt) { decoded in
                         let decodeEnd = DispatchTime.now().uptimeNanoseconds
                         switch decoded {
                         case .failure(let error):
@@ -412,6 +481,7 @@ if !captureVerified {
         let encoded = encodedCount, decoded = decodedCount, keys = keyframes
         let bytes = encodedBytes, encodeTime = encodeNanos, decodeTime = decodeNanos
         let error = firstError, source = sourceStats, result = decodedStats
+        let throughWire = wireFrames, wireTotal = wireBytes
         lock.unlock()
 
         if let error {
@@ -426,8 +496,18 @@ if !captureVerified {
             problems += 1
         }
 
+        if throughWire > 0, throughWire == encoded {
+            pass("\(throughWire) frames survived the wire format intact")
+        } else if throughWire > 0 {
+            fail("Only \(throughWire) of \(encoded) frames survived the wire format")
+            problems += 1
+        } else {
+            fail("No frames survived the wire format")
+            problems += 1
+        }
+
         if decoded > 0 {
-            pass("\(decoded) frames decoded back")
+            pass("\(decoded) frames decoded back after serialising")
         } else {
             fail("No frames were decoded")
             problems += 1
@@ -468,6 +548,9 @@ if !captureVerified {
             note(String(format: "encode %.2f ms/frame, decode %.2f ms/frame",
                         Double(encodeTime) / Double(encoded) / 1_000_000,
                         Double(decodeTime) / Double(max(decoded, 1)) / 1_000_000))
+            let overhead = Double(wireTotal - bytes) / Double(max(encoded, 1))
+            note(String(format: "%.1f KB/s on the wire, %.0f bytes per frame of framing overhead",
+                        Double(wireTotal) / max(min(holdSeconds, 8), 1) / 1024, overhead))
             note("Timings are the codec only. Transport and display are still to come.")
         }
 

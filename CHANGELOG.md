@@ -37,6 +37,14 @@ Understudy cannot yet be used as a display. This entry covers foundational work.
   tripping captured frames at 3024×1964 with the image intact: encode 10 to
   13 ms per frame on hardware, decode about 5 ms.
 
+- `StreamProtocol` serialises encoded frames for the network: HEVC parameter set
+  extraction and rebuilding, length-prefixed message framing, and reconstruction
+  of a decodable frame from received bytes. In-process the decoder gets the
+  stream's parameter sets for free from the encoder; across a socket they have to
+  travel explicitly or the client cannot build a decoder at all. The probe now
+  pushes every frame through this byte format before decoding, so the wire path
+  is exercised without a socket involved.
+
 ### Fixed
 
 - The `macBookAir13` preset described the 13.6-inch M2 Air (2560×1664) while
