@@ -17,15 +17,15 @@
 
 Early development. You cannot use this as a monitor yet.
 
-The whole pipeline works: a virtual display, captured, encoded, streamed to a paired client, and drawn on screen. It has only ever run with both ends on the same Mac, so nothing has crossed real Wi-Fi yet, and it is two command-line tools rather than an app you can double-click.
+The whole pipeline works and has run across two Macs over Wi-Fi: an M5 MacBook Air streaming to an M1 Air, 47 to 49 fps with no dropped frames, peaking at 51 Mb/s while a window was dragged around. It is still two command-line tools rather than an app you can double-click.
 
 | Milestone | State |
 |---|---|
 | **1. Virtual display** | Working, verified on macOS 26.5 |
 | **2. Capture frames off that display** | Working, verified on macOS 26.5 |
 | **3. Encode and decode as HEVC** | Working, verified on macOS 26.5 |
-| **4. Send frames over the network** | Working, two machines untested |
-| **5. Client that displays them fullscreen** | Working, two machines untested |
+| **4. Send frames over the network** | Working, verified across two Macs |
+| **5. Client that displays them fullscreen** | Working, verified across two Macs |
 | 6. One download, pick a role, done | Not started |
 
 Star the repo if you want to hear when it works end to end.
@@ -180,7 +180,8 @@ One more limitation, this one unexplained so far: a process can create a single 
 - [x] Hardware HEVC encode and decode, tuned for latency ahead of quality
 - [x] Wi-Fi transport with Bonjour discovery and paired TLS
 - [x] Client rendering the stream fullscreen
-- [ ] Verify across two machines over real Wi-Fi
+- [x] Verify across two machines over real Wi-Fi
+- [ ] Measure true glass-to-glass latency
 - [ ] Pairing, so the two Macs find each other without configuration
 - [ ] Single app bundle with a host and client role picker
 - [ ] Signed, notarized releases
