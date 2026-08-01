@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-Understudy cannot yet be used as a display. This entry covers foundational work.
+First working version. A spare MacBook can be used as a second display, verified across two Macs over Wi-Fi.
 
 ### Added
 
