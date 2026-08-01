@@ -4,6 +4,7 @@ import CoreImage
 import CoreMedia
 import CoreVideo
 import Foundation
+import Network
 import UnderstudyKit
 
 // A diagnostic tool, not part of the shipping app. It creates a virtual display,
@@ -312,6 +313,10 @@ if !ScreenRecordingPermission.isGranted {
 
 heading("Encoding and decoding")
 
+// Kept from the encode stage and replayed over a real socket below, so the
+// transport is tested against genuine frames rather than synthetic bytes.
+var outboundMessages: [StreamMessage] = []
+
 if !captureVerified {
     note("Skipped, since capture did not produce usable frames.")
 } else {
@@ -394,20 +399,26 @@ if !captureVerified {
                         return
                     }
 
-                    var wire = Data()
+                    var messages: [StreamMessage] = []
                     if needsParameters {
                         guard let parameters = VideoParameterSets(formatDescription: format) else {
                             record("could not extract HEVC parameter sets")
                             return
                         }
-                        wire.append(StreamMessage.parameters(parameters).encoded())
+                        messages.append(.parameters(parameters))
                     }
-                    wire.append(StreamMessage.frame(
+                    messages.append(.frame(
                         data: payload,
                         presentationTime: CMSampleBufferGetPresentationTimeStamp(sample),
-                        isKeyframe: sample.isKeyframe).encoded())
+                        isKeyframe: sample.isKeyframe))
 
-                    lock.lock(); wireBytes += wire.count; lock.unlock()
+                    var wire = Data()
+                    for message in messages { wire.append(message.encoded()) }
+
+                    lock.lock()
+                    wireBytes += wire.count
+                    if outboundMessages.count < 40 { outboundMessages.append(contentsOf: messages) }
+                    lock.unlock()
 
                     var rebuilt: CMSampleBuffer?
                     do {
@@ -560,6 +571,194 @@ if !captureVerified {
         fail("Could not set up coding: \(error.localizedDescription)")
         problems += 1
     }
+}
+
+heading("Streaming over a socket")
+
+if outboundMessages.isEmpty {
+    note("Skipped, since no encoded frames were available to send.")
+} else {
+    let code = PairingCode.random()
+    let server = StreamServer(pairingCode: code, serviceName: "Understudy Probe")
+    let lock = NSLock()
+
+    var serverStarted = false
+    var serverError: Error?
+    server.start { error in
+        lock.lock(); serverStarted = true; serverError = error; lock.unlock()
+    }
+
+    func waitUntil(_ seconds: TimeInterval, _ condition: () -> Bool) {
+        let deadline = Date().addingTimeInterval(seconds)
+        while Date() < deadline, !condition() { pump(0.05) }
+    }
+
+    waitUntil(5) { lock.lock(); defer { lock.unlock() }; return serverStarted }
+    lock.lock(); let startFailure = serverError; let started = serverStarted; lock.unlock()
+
+    if !started || startFailure != nil {
+        fail("Host failed to start listening: \(startFailure?.localizedDescription ?? "timed out")")
+        problems += 1
+    } else if let port = server.port, let endpoint = NWEndpoint.Port(rawValue: port) {
+        pass("Host is listening on port \(port)")
+
+        // Discovery, checked separately from the connection below. The frames
+        // travel over an explicit loopback address, so without this the Bonjour
+        // half would ship untested.
+        var discovered: [String] = []
+        let finder = StreamClient(pairingCode: code)
+        finder.onHostsChanged = { results in
+            lock.lock()
+            discovered = results.compactMap {
+                if case let .service(name, _, _, _) = $0.endpoint { return name }
+                return nil
+            }
+            lock.unlock()
+        }
+        finder.onError = { _ in }
+        finder.browse()
+        waitUntil(8) {
+            lock.lock(); defer { lock.unlock() }
+            return discovered.contains("Understudy Probe")
+        }
+        lock.lock(); let visible = discovered; lock.unlock()
+        if visible.contains("Understudy Probe") {
+            pass("Host discovered over Bonjour by name")
+        } else {
+            fail("Host never appeared over Bonjour" + (visible.isEmpty ? "" : ", saw \(visible)"))
+            problems += 1
+        }
+        finder.disconnect()
+
+        // --- The paired client. ---
+        var connected = false
+        var messages: [StreamMessage] = []
+        var clientProblem: String?
+
+        let client = StreamClient(pairingCode: code)
+        client.onConnected = { lock.lock(); connected = true; lock.unlock() }
+        client.onMessage = { message in
+            lock.lock(); messages.append(message); lock.unlock()
+        }
+        client.onError = { error in
+            lock.lock()
+            if clientProblem == nil { clientProblem = error.localizedDescription }
+            lock.unlock()
+        }
+        client.connect(to: .hostPort(host: "127.0.0.1", port: endpoint))
+
+        waitUntil(8) { lock.lock(); defer { lock.unlock() }; return connected }
+        lock.lock(); let isConnected = connected; lock.unlock()
+
+        if !isConnected {
+            fail("Client never completed the paired handshake")
+            problems += 1
+        } else {
+            pass("Client paired and connected over TLS")
+
+            lock.lock(); let toSend = outboundMessages; lock.unlock()
+            // Paced at roughly the real frame interval. Sending in a tight loop
+            // would fill the send queue instantly and trigger the drop policy,
+            // which exists for a link that cannot keep up rather than for a
+            // sender that refuses to wait.
+            for message in toSend {
+                server.send(message)
+                pump(1.0 / preset.refreshRate)
+            }
+
+            waitUntil(8) {
+                lock.lock(); defer { lock.unlock() }
+                return messages.count >= toSend.count - server.droppedFrames
+            }
+
+            lock.lock()
+            let arrived = messages
+            let failure = clientProblem
+            lock.unlock()
+            let dropped = server.droppedFrames
+
+            if let failure {
+                fail("Client reported: \(failure)")
+                problems += 1
+            }
+
+            let sentFrames = toSend.filter { if case .frame = $0 { return true } else { return false } }.count
+            let arrivedFrames = arrived.filter { if case .frame = $0 { return true } else { return false } }.count
+
+            if arrivedFrames + dropped != sentFrames {
+                fail("\(arrivedFrames) arrived plus \(dropped) dropped does not account for "
+                     + "\(sentFrames) sent, so frames went missing silently")
+                problems += 1
+            } else if dropped > 0 {
+                // Loopback has no excuse. Drops here mean the send path itself
+                // is too slow, not that the network is struggling.
+                fail("\(dropped) of \(sentFrames) frames dropped over loopback")
+                problems += 1
+            } else {
+                pass("all \(sentFrames) frames arrived over the socket, none dropped")
+            }
+
+            // --- Decode what actually came off the socket. ---
+            let socketDecoder = FrameDecoder()
+            var socketFormat: CMFormatDescription?
+            var decodedOverSocket = 0
+            let decodeLock = NSLock()
+
+            for message in arrived {
+                switch message {
+                case .parameters(let parameters):
+                    socketFormat = parameters.makeFormatDescription()
+                case .frame(let data, let time, _):
+                    guard let socketFormat,
+                          let sample = CMSampleBuffer.makeEncodedFrame(
+                            data: data, formatDescription: socketFormat, presentationTime: time)
+                    else { continue }
+                    socketDecoder.decode(sample) { result in
+                        if case .success = result {
+                            decodeLock.lock(); decodedOverSocket += 1; decodeLock.unlock()
+                        }
+                    }
+                }
+            }
+            pump(1.0)
+
+            decodeLock.lock(); let decodedCount = decodedOverSocket; decodeLock.unlock()
+            if socketFormat == nil {
+                fail("Parameter sets never arrived, so the client could not build a decoder")
+                problems += 1
+            } else if decodedCount > 0 {
+                pass("\(decodedCount) frames decoded from bytes received over the socket")
+            } else {
+                fail("No frames decoded from the socket")
+                problems += 1
+            }
+            socketDecoder.invalidate()
+
+            // --- An unpaired client must be refused. ---
+            var intruderConnected = false
+            let intruder = StreamClient(pairingCode: PairingCode.random())
+            intruder.onConnected = { lock.lock(); intruderConnected = true; lock.unlock() }
+            intruder.onError = { _ in }
+            intruder.connect(to: .hostPort(host: "127.0.0.1", port: endpoint))
+            pump(4.0)
+
+            lock.lock(); let intruderGotIn = intruderConnected; lock.unlock()
+            if intruderGotIn {
+                fail("A client with the wrong pairing code was allowed to connect")
+                problems += 1
+            } else {
+                pass("A client with the wrong pairing code was refused")
+            }
+            intruder.disconnect()
+        }
+
+        client.disconnect()
+    } else {
+        fail("Host started but reported no port")
+        problems += 1
+    }
+
+    server.stop()
 }
 
 heading("Tearing down")

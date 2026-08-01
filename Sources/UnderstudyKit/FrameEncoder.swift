@@ -115,17 +115,27 @@ public final class FrameEncoder {
     }
 
     /// Encodes one frame. `completion` runs on a VideoToolbox-owned thread.
+    ///
+    /// - Parameter forceKeyframe: Emit a self-contained frame rather than one
+    ///   that references earlier frames. Required after the transport drops a
+    ///   frame, since the gap breaks the reference chain and the picture stays
+    ///   corrupt until a keyframe arrives.
     public func encode(_ pixelBuffer: CVPixelBuffer,
                        at time: CMTime,
+                       forceKeyframe: Bool = false,
                        completion: @escaping (Result<CMSampleBuffer, Error>) -> Void) {
         guard let session else { return completion(.failure(VideoCodingError.encodeFailed(-1))) }
+
+        let properties: CFDictionary? = forceKeyframe
+            ? [kVTEncodeFrameOptionKey_ForceKeyFrame: kCFBooleanTrue] as CFDictionary
+            : nil
 
         let status = VTCompressionSessionEncodeFrame(
             session,
             imageBuffer: pixelBuffer,
             presentationTimeStamp: time,
             duration: .invalid,
-            frameProperties: nil,
+            frameProperties: properties,
             infoFlagsOut: nil
         ) { status, infoFlags, sampleBuffer in
             if status != noErr {

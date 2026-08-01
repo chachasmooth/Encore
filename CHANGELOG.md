@@ -45,6 +45,14 @@ Understudy cannot yet be used as a display. This entry covers foundational work.
   pushes every frame through this byte format before decoding, so the wire path
   is exercised without a socket involved.
 
+- `StreamServer` and `StreamClient` carry frames over the network: Bonjour
+  discovery, TLS pairing from a six digit code, length-prefixed messages, and a
+  bounded send queue that drops stale frames rather than letting them queue into
+  latency. `FrameEncoder.encode` gained a `forceKeyframe` flag, since dropping a
+  frame breaks HEVC's reference chain until a self-contained frame arrives.
+  Verified over loopback: discovery by name, paired handshake, 39 of 39 frames
+  delivered and decoded, and a client with the wrong code refused.
+
 ### Fixed
 
 - The `macBookAir13` preset described the 13.6-inch M2 Air (2560×1664) while

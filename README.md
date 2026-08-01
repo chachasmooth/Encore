@@ -17,14 +17,14 @@
 
 Early development. You cannot use this as a monitor yet.
 
-The virtual display works and frames come off it. Nothing is sent anywhere yet.
+The virtual display works, frames come off it, and they reach a paired client over the network. Nothing draws them on screen yet, and it has only ever run on one machine talking to itself.
 
 | Milestone | State |
 |---|---|
 | **1. Virtual display** | Working, verified on macOS 26.5 |
 | **2. Capture frames off that display** | Working, verified on macOS 26.5 |
 | **3. Encode and decode as HEVC** | Working, verified on macOS 26.5 |
-| 4. Send frames to the other Mac over a cable | Not started |
+| **4. Send frames over the network** | Working over loopback, two machines untested |
 | 5. Client app that displays them fullscreen | Not started |
 | 6. One download, pick a role, done | Not started |
 
@@ -32,7 +32,7 @@ Star the repo if you want to hear when it works end to end.
 
 ## What it will do
 
-Connect two Macs with a USB-C cable. The spare one becomes a second display for the main one. Drag windows onto it, park your reference docs there, extend your desktop the way you would with any monitor.
+Open Understudy on both Macs, pair them with a six digit code, and the spare one becomes a second display for the main one. Drag windows onto it, park your reference docs there, extend your desktop the way you would with any monitor.
 
 macOS treats it as attached hardware. The cursor crosses onto it. Windows remember where they were. It appears in System Settings alongside anything else you have plugged in.
 
@@ -47,16 +47,16 @@ It will also never appear on the Mac App Store. Private API disqualifies it.
 ## Requirements
 
 - Two Apple Silicon MacBooks, M1 or newer, running macOS 14 (Sonoma) or later
-- A **Thunderbolt** cable between them
+- Both on the same Wi-Fi network
 - Screen Recording permission on the host Mac
 
-Every M-series MacBook has hardware HEVC encoding and decoding and Thunderbolt on every port, which is why the requirement is drawn there. Intel Macs are untested.
+No cable. Every M-series MacBook has hardware HEVC encoding and decoding, which is why the requirement is drawn there. Intel Macs are untested.
 
-The cable is the part people get wrong. A USB-C cable that fits is not necessarily a Thunderbolt cable, and many are charge-only or USB 2. Thunderbolt Bridge, which Understudy uses to reach the other Mac, needs a real Thunderbolt cable. Look for a lightning-bolt symbol near the connector or a 40Gb/s marking.
+A compressed stream needs a few Mb/s, which any modern Wi-Fi handles comfortably, so bandwidth is not the constraint. Consistency is. Wi-Fi's problem is not its average latency but its occasional spikes, and a display that is reliably 30 ms behind feels far better than one that is usually 20 ms and jumps to 120 ms. Understudy drops stale frames rather than queueing them for exactly this reason.
 
-**MacBook Neo is not supported for wired use.** It has no Thunderbolt at all, just one USB 3 and one USB 2 port, so it cannot join a Thunderbolt Bridge. Its A18 Pro decodes HEVC in hardware perfectly well, so it becomes usable as soon as wireless transport lands.
+A Thunderbolt cable or a pair of USB-C Ethernet adapters will both be faster and steadier, and they work with no extra setup because the transport is ordinary TCP over whichever interface exists. Neither is required.
 
-Wireless is on the roadmap. A cable comes first because latency decides whether this feels like a monitor or like a laggy screen share, and a direct connection removes most of the problem before it starts.
+Understudy pairs with a six digit code shown on the host. That code becomes the TLS pre-shared key for the connection, so a machine that does not have it cannot complete the handshake and never receives a frame.
 
 ### Supported panels
 
@@ -94,8 +94,8 @@ Six models, five resolutions, and Apple has not changed any of them between the 
   │  hardware HEVC encode   │                │  hardware decode    │
   └───────────┬─────────────┘                └─────────┬───────────┘
               │                                        │
-              └──────── Thunderbolt / USB-C ───────────┘
-                         low-latency transport
+              └────────────── Wi-Fi ───────────────────┘
+                    paired, TLS, stale frames dropped
 ```
 
 Step one carries all the risk. macOS exposes no public way to register a virtual monitor, so Understudy calls four undocumented CoreGraphics classes. Every one of those calls lives in [a single file](Sources/CVirtualDisplay/USVirtualDisplay.m). When Apple eventually changes something, one small well-marked place breaks instead of the whole application.
@@ -116,37 +116,32 @@ cd Understudy && swift build
 
 ### Trying it
 
-This part works today. The probe creates a Retina display, checks that macOS registered it at the right geometry, captures frames from it, then removes it.
+The probe exercises everything built so far on a single machine: it creates the display, captures it, encodes and decodes, then streams real frames to a client over a socket on loopback.
 
 ```bash
 swift run understudy-probe 20
 ```
 
 ```
-Verifying macOS sees it
-────────────────────────────────────────────
-  ✓ Appears in the active display list
-    #23    1512×982 pts  3024×1964 px  @2.0x  @(-1512, 0)  [HiDPI]
-  ✓ Logical resolution matches: 1512×982 pts
-  ✓ Backing resolution matches: 3024×1964 px
+  ✓ Backing resolution matches: 2560×1600 px
   ✓ Retina/HiDPI confirmed (2.0x scale)
-  ✓ Reported as a secondary external display
-
-Capturing frames
-────────────────────────────────────────────
-  ✓ Screen Recording permission granted
-  ✓ Capture started
   ✓ Frames are arriving
-  ✓ Frame size matches the display: 3024×1964 px
-  ✓ Frames contain real pixels (peak 153, mean 0.0013)
-    45 frames with new content, 124 unchanged
+  ✓ Frames contain real pixels (peak 153, mean 0.0018)
+  ✓ Encoder is hardware accelerated
+  ✓ 50 frames survived the wire format intact
+  ✓ Image survived the round trip (peak 158 vs 153 source)
+  ✓ Host discovered over Bonjour by name
+  ✓ Client paired and connected over TLS
+  ✓ all 39 frames arrived over the socket, none dropped
+  ✓ 39 frames decoded from bytes received over the socket
+  ✓ A client with the wrong pairing code was refused
 ```
 
 The first captured frame is saved as a PNG and the probe prints its path, so you can open it and see exactly what came back.
 
 Two things surprise people here. A freshly created display has no wallpaper on it, so that PNG is mostly black with only a menu bar across the top, and that is correct rather than broken. An idle screen also produces very few frames with new content, because ScreenCaptureKit sends one only when something actually changes.
 
-Open System Settings > Displays while it runs and you will find a second monitor listed. Windows dragged onto it vanish from view, since nothing is being sent to another Mac yet.
+Open System Settings > Displays while it runs and you will find a second monitor listed. Windows dragged onto it vanish from view, since nothing draws them on a second screen yet.
 
 ## Caveats
 
@@ -163,7 +158,7 @@ One more limitation, this one unexplained so far: a process can create a single 
 - [x] Create a Retina virtual display and confirm macOS accepts it
 - [x] Capture the virtual display with ScreenCaptureKit
 - [x] Hardware HEVC encode and decode, tuned for latency ahead of quality
-- [ ] Wired transport over Thunderbolt Bridge
+- [x] Wi-Fi transport with Bonjour discovery and paired TLS
 - [ ] Client app rendering fullscreen through Metal
 - [ ] Pairing, so the two Macs find each other without configuration
 - [ ] Single app bundle with a host and client role picker

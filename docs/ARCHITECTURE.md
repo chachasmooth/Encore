@@ -9,7 +9,7 @@ cost real debugging time, so nobody has to rediscover them.
 Sources/
   CVirtualDisplay/     Objective-C. The only code that touches private Apple API.
   UnderstudyKit/       Swift. Display management and shared types.
-  understudy-probe/    Diagnostic CLI that proves the virtual display works.
+  understudy-probe/    Diagnostic CLI exercising every stage on one machine.
 Tools/
   dump-private-api.m   Prints the live signatures of Apple's private classes.
 Tests/
@@ -155,8 +155,9 @@ software encoder. Measured at 3024×1964:
 | Low-latency rate control | no | 12.4 |
 | Default rate control | yes | 6.3 |
 
-It does produce smaller frames, but bitrate is not the constraint over a cable
-and latency is the whole product. `FrameEncoder.isHardwareAccelerated` reports
+It does produce smaller frames, but a compressed stream is a few Mb/s against a
+Wi-Fi link with far more headroom than that, so bitrate is not the constraint and
+latency is the whole product. `FrameEncoder.isHardwareAccelerated` reports
 what VideoToolbox actually picked, and the probe fails if it is software, so a
 future regression here surfaces immediately instead of as vague sluggishness.
 
@@ -169,15 +170,40 @@ about 5 ms, output identical in size to the input and visually intact. Compressi
 lands between 6000:1 and 9000:1, though that number flatters itself on a mostly
 static screen and will fall sharply with real content in motion.
 
+## Transport
+
+Frames travel as length-prefixed messages over TCP, with Bonjour for discovery
+and TLS for pairing. Nothing in it is specific to Wi-Fi: it is ordinary TCP over
+whichever interface exists, so a Thunderbolt cable or a USB-C Ethernet adapter
+works with no code change and no configuration.
+
+**Parameter sets have to be sent explicitly.** In-process the decoder reads a
+stream's VPS, SPS and PPS straight off the encoder's format description. Across
+a socket the client has none of that, and every frame is meaningless bytes until
+they arrive. `StreamProtocol` extracts them, sends them as their own message
+before the first frame, and rebuilds a format description on the far side.
+
+**Pairing is the security boundary, not a convenience.** Anything that connects
+sees the host's screen. A six digit code shown on the host is hashed into a TLS
+pre-shared key that both ends derive independently, so a machine without the code
+cannot complete the handshake and never receives a frame. The probe tests this by
+attempting a connection with a deliberately wrong code and requiring it to fail.
+
+**Queued frames are latency.** Every frame waiting behind another is one the
+viewer sees late, so the sender allows at most two writes in flight and discards
+newer frames beyond that rather than buffering them. Discarding has a cost worth
+knowing: HEVC frames reference earlier ones, so a gap corrupts the picture until
+a self-contained frame arrives. `FrameEncoder.encode` therefore takes a
+`forceKeyframe` flag, and a drop is expected to trigger one.
+
+`TCP_NODELAY` is set. Nagle's algorithm holds small writes back to batch them,
+which is precisely wrong here: a frame delayed to save a packet is a frame late.
+
 ## Planned pipeline
 
-Milestones 4 and 5, not yet built:
+Milestone 5, not yet built:
 
-1. **Transport** — length-prefixed frames over TCP on the Thunderbolt Bridge
-   interface. A direct cable gives 10 Gbps and near-zero loss, so the first
-   implementation needs no congestion control or retransmission — complexity
-   that only wireless will require.
-2. **Render** — decoded frames into a `CAMetalLayer`, presented fullscreen.
+1. **Render** — decoded frames into a `CAMetalLayer`, presented fullscreen.
 
 The latency target is **under 30 ms glass-to-glass**. Past roughly 60 ms it
 stops feeling like a monitor and starts feeling like screen sharing, which is
