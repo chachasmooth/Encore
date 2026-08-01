@@ -132,6 +132,17 @@ xattr -dr com.apple.quarantine /Applications/Understudy.app
 
 ## Using it
 
+### Turn off Universal Control first
+
+If both Macs are signed into the same Apple ID, macOS Universal Control is probably already on, and it will fight Understudy for the same screen edge. Turn it off in System Settings > Displays > Advanced, under "Allow your pointer and keyboard to move between any nearby Mac or iPad".
+
+The two do genuinely different things and are easy to confuse. Universal Control sends your *cursor* to the other Mac so you can use its own apps. Understudy gives you a second *display* whose windows live on this Mac. When the spare is showing Understudy fullscreen and your cursor arrives via Universal Control, you are pointing at the spare's own desktop sitting on top of the picture, and clicking does nothing to the window you can see.
+
+Understudy cannot detect Universal Control to work around it. CoreGraphics does not report the link as a display at all, so only you can see where it is.
+
+If you want to keep Universal Control, put Understudy on an edge it is not using. Above and Below are usually free, since two laptops side by side link along a left or right edge.
+
+
 Open Understudy on both Macs.
 
 On the Mac you want to extend, choose **Extend this Mac** and pick which MacBook is acting as the screen. It shows a six digit code.

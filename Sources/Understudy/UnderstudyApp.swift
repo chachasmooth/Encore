@@ -242,16 +242,29 @@ struct ClientView: View {
 
     var body: some View {
         ZStack {
+            Color.black.ignoresSafeArea()
             if showingVideo {
                 VideoLayerView(layer: layer).ignoresSafeArea()
             } else {
                 VStack(spacing: 20) {
                     Text("Enter the code from your other Mac").font(.title2)
                     TextField("000000", text: $code)
-                        .textFieldStyle(.roundedBorder)
-                        .font(.system(size: 34, design: .monospaced))
+                        // Plain style with an explicit height, because a bordered
+                        // field sizes itself for body text and clips large digits.
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 30, weight: .medium, design: .monospaced))
                         .multilineTextAlignment(.center)
-                        .frame(width: 220)
+                        .frame(width: 200, height: 48)
+                        .background(RoundedRectangle(cornerRadius: 10)
+                            .fill(Color.primary.opacity(0.1)))
+                        .onChange(of: code) { _, new in
+                            // Codes are always six digits, so anything else is a
+                            // typo worth swallowing rather than overflowing with.
+                            let digits = new.filter(\.isNumber)
+                            if digits != new || digits.count > 6 {
+                                code = String(digits.prefix(6))
+                            }
+                        }
                         .onSubmit(connect)
                     Button("Connect", action: connect)
                         .buttonStyle(.borderedProminent)
@@ -283,11 +296,11 @@ struct ClientView: View {
             DispatchQueue.main.async {
                 // Leave fullscreen before anything else, or the window is left
                 // as a black fullscreen shell with no way back to the code entry.
-                setFullScreen(window, false)
                 showingVideo = false
                 statusText = "The other Mac stopped sharing."
                 layer.flush()
                 self.session = nil
+                leaveFullScreenAndResize(window)
             }
         }
 
@@ -325,6 +338,28 @@ struct WindowAccessor: NSViewRepresentable {
     func updateNSView(_ view: NSView, context: Context) {
         DispatchQueue.main.async { if let window = view.window { onWindow(window) } }
     }
+}
+
+/// Leaves fullscreen and puts the window back to a sensible size.
+///
+/// Exiting fullscreen keeps the old frame, so the code-entry panel ends up
+/// stranded in the corner of a full-screen black window. The resize waits for
+/// the exit animation, since setting a frame mid-transition is ignored.
+private func leaveFullScreenAndResize(_ window: NSWindow?) {
+    guard let window else { return }
+    guard window.styleMask.contains(.fullScreen) else { return window.center() }
+
+    // Held in a box so the observer can unregister itself without the closure
+    // capturing a var it also assigns.
+    final class TokenBox { var value: NSObjectProtocol? }
+    let box = TokenBox()
+    box.value = NotificationCenter.default.addObserver(
+        forName: NSWindow.didExitFullScreenNotification, object: window, queue: .main) { _ in
+            window.setContentSize(NSSize(width: 560, height: 340))
+            window.center()
+            if let value = box.value { NotificationCenter.default.removeObserver(value) }
+        }
+    window.toggleFullScreen(nil)
 }
 
 /// AppKit only offers a toggle, so calling it blindly does the opposite of what
