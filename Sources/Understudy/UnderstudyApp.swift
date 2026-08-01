@@ -84,6 +84,7 @@ struct RolePicker: View {
 
 struct HostView: View {
     @State private var preset = DisplayPreset.macBook13
+    @AppStorage("screenPosition") private var positionRaw = ScreenPosition.right.rawValue
     @State private var session: HostSession?
     @State private var problem: String?
     @State private var connected = false
@@ -120,7 +121,7 @@ struct HostView: View {
                         stat(String(format: "%.1f", mbps), "Mb/s")
                         stat("\(session.droppedFrames)", "dropped")
                     }
-                    Text("Drag a window off the edge of this screen to send it across.")
+                    Text("Drag a window off the \(ScreenPosition(rawValue: positionRaw)?.label.lowercased() ?? "right") edge of this screen to send it across.")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -144,6 +145,14 @@ struct HostView: View {
                 }
                 .labelsHidden()
                 .frame(width: 320)
+
+                Text("Which side of this screen?").font(.callout).foregroundStyle(.secondary)
+                Picker("", selection: $positionRaw) {
+                    ForEach(ScreenPosition.allCases, id: \.rawValue) { Text($0.label).tag($0.rawValue) }
+                }
+                .pickerStyle(.segmented)
+                .labelsHidden()
+                .frame(width: 220)
 
                 Button("Start") { start() }
                     .buttonStyle(.borderedProminent)
@@ -173,7 +182,8 @@ struct HostView: View {
 
     private func start() {
         problem = nil
-        let session = HostSession(preset: preset)
+        let session = HostSession(preset: preset,
+                                  position: ScreenPosition(rawValue: positionRaw) ?? .right)
         session.onClientConnected = { DispatchQueue.main.async { connected = true } }
         session.onClientDisconnected = { _ in DispatchQueue.main.async { connected = false } }
         session.start { error in
@@ -246,14 +256,26 @@ struct ClientView: View {
         guard code.count == 6, session == nil else { return }
         let session = ClientSession(pairingCode: code)
         session.onStatus = { text in DispatchQueue.main.async { statusText = text } }
+
+        session.onConnected = {
+            DispatchQueue.main.async {
+                showingVideo = true
+                setFullScreen(true)
+            }
+        }
+
         session.onDisconnected = { _ in
             DispatchQueue.main.async {
+                // Leave fullscreen before anything else, or the window is left
+                // as a black fullscreen shell with no way back to the code entry.
+                setFullScreen(false)
                 showingVideo = false
-                statusText = "Disconnected."
+                statusText = "The other Mac stopped sharing."
                 layer.flush()
                 self.session = nil
             }
         }
+
         session.onFrame = { sample in
             markDisplayImmediately(sample)
             DispatchQueue.main.async {
@@ -264,16 +286,20 @@ struct ClientView: View {
                     session.resyncAfterFlush()
                 }
                 layer.enqueue(sample)
-                if !showingVideo {
-                    showingVideo = true
-                    // Only once frames are actually arriving, so a failed pairing
-                    // never leaves someone stuck on a black fullscreen window.
-                    NSApp.keyWindow?.toggleFullScreen(nil)
-                }
             }
         }
         session.start()
         self.session = session
+    }
+}
+
+/// Toggling fullscreen is a no-op if the window is already in the wanted state,
+/// since AppKit only offers a toggle and calling it blindly does the opposite of
+/// what was asked half the time.
+private func setFullScreen(_ wanted: Bool) {
+    guard let window = NSApp.windows.first(where: { $0.isVisible }) else { return }
+    if window.styleMask.contains(.fullScreen) != wanted {
+        window.toggleFullScreen(nil)
     }
 }
 

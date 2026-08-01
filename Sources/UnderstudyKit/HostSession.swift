@@ -10,6 +10,7 @@ public final class HostSession {
     public let pairingCode: String
     public let preset: DisplayPreset
     public let serviceName: String
+    public let position: ScreenPosition
 
     private var display: VirtualDisplay?
     private var capture: DisplayCapture?
@@ -22,6 +23,15 @@ public final class HostSession {
     private var frameIndex: Int64 = 0
     private var _framesSent = 0
     private var _bytesSent = 0
+    /// The most recent captured screen, kept so it can be re-sent on demand.
+    ///
+    /// ScreenCaptureKit only delivers a frame when something changes, so a
+    /// still screen produces nothing at all. Without a copy to fall back on, a
+    /// client that connects to an idle desktop waits forever for a first frame
+    /// and shows nothing.
+    private var lastBuffer: CVPixelBuffer?
+    private var lastSendTime = Date.distantPast
+    private var heartbeat: DispatchSourceTimer?
 
     public var onClientConnected: (() -> Void)?
     public var onClientDisconnected: ((Error?) -> Void)?
@@ -33,9 +43,11 @@ public final class HostSession {
     public var isHardwareAccelerated: Bool { encoder?.isHardwareAccelerated ?? false }
 
     public init(preset: DisplayPreset,
+                position: ScreenPosition = .right,
                 serviceName: String = Host.current().localizedName ?? "Understudy Host",
                 pairingCode: String = PairingCode.random()) {
         self.preset = preset
+        self.position = position
         self.serviceName = serviceName
         self.pairingCode = pairingCode
     }
@@ -48,6 +60,9 @@ public final class HostSession {
 
         do {
             let display = try VirtualDisplay(preset: preset, name: "Understudy")
+            // Placed deliberately. Otherwise macOS puts it on the left, where it
+            // collides with wherever Universal Control has the other Mac.
+            display.place(position)
             let encoder = try FrameEncoder(pixelWidth: Int(preset.pixelWidth),
                                            pixelHeight: Int(preset.pixelHeight),
                                            frameRate: Int(preset.refreshRate))
@@ -68,9 +83,17 @@ public final class HostSession {
             server.onClientConnected = { [weak self] in
                 guard let self else { return }
                 // A fresh client has no parameter sets and no keyframe, so it can
-                // decode nothing that references earlier frames. Start it over.
-                state.lock(); parametersSent = false; needsKeyframe = true; state.unlock()
+                // decode nothing that references earlier frames. Start it over,
+                // and push the current screen immediately rather than waiting for
+                // something on it to move.
+                state.lock()
+                parametersSent = false
+                needsKeyframe = true
+                let current = lastBuffer
+                state.unlock()
+
                 onClientConnected?()
+                if let current { encodeAndSend(current, forceKeyframe: true) }
             }
             server.onClientDisconnected = { [weak self] in self?.onClientDisconnected?($0) }
 
@@ -85,46 +108,84 @@ public final class HostSession {
 
     private func beginCapturing(completion: @escaping (Error?) -> Void) {
         capture?.start(onFrame: { [weak self] buffer in
-            guard let self, let server, let encoder, server.isConnected else { return }
+            guard let self else { return }
+            state.lock(); lastBuffer = buffer; state.unlock()
+            guard server?.isConnected == true else { return }
+            encodeAndSend(buffer, forceKeyframe: false)
+        }, completion: { [weak self] error in
+            if error == nil { self?.startHeartbeat() }
+            completion(error)
+        })
+    }
+
+    /// Re-sends the last captured screen when nothing has moved for a while.
+    ///
+    /// Covers two cases that both otherwise leave the client showing nothing: a
+    /// client connecting to a completely still screen, and a client whose
+    /// decoder was reset and is waiting for a keyframe that a still screen will
+    /// never produce.
+    private func startHeartbeat() {
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "com.understudy.heartbeat"))
+        timer.schedule(deadline: .now() + 1, repeating: 1)
+        timer.setEventHandler { [weak self] in
+            guard let self, server?.isConnected == true else { return }
+            state.lock()
+            let idle = Date().timeIntervalSince(lastSendTime) > 1
+            let current = lastBuffer
+            state.unlock()
+            guard idle, let current else { return }
+            encodeAndSend(current, forceKeyframe: true)
+        }
+        timer.resume()
+        heartbeat = timer
+    }
+
+    private func encodeAndSend(_ buffer: CVPixelBuffer, forceKeyframe: Bool) {
+        guard let server, let encoder, server.isConnected else { return }
+
+        state.lock()
+        let time = CMTime(value: frameIndex, timescale: CMTimeScale(preset.refreshRate))
+        frameIndex += 1
+        let force = forceKeyframe || needsKeyframe
+        needsKeyframe = false
+        state.unlock()
+
+        encoder.encode(buffer, at: time, forceKeyframe: force) { [weak self] result in
+            guard let self,
+                  case .success(let sample) = result,
+                  let format = CMSampleBufferGetFormatDescription(sample),
+                  let payload = sample.encodedData
+            else { return }
 
             state.lock()
-            let time = CMTime(value: frameIndex, timescale: CMTimeScale(preset.refreshRate))
-            frameIndex += 1
-            let forceKeyframe = needsKeyframe
-            needsKeyframe = false
+            let needsParameters = !parametersSent
+            if needsParameters { parametersSent = true }
             state.unlock()
 
-            encoder.encode(buffer, at: time, forceKeyframe: forceKeyframe) { [weak self] result in
-                guard let self,
-                      case .success(let sample) = result,
-                      let format = CMSampleBufferGetFormatDescription(sample),
-                      let payload = sample.encodedData
-                else { return }
-
-                state.lock()
-                let needsParameters = !parametersSent
-                if needsParameters { parametersSent = true }
-                state.unlock()
-
-                if needsParameters {
-                    guard let parameters = VideoParameterSets(formatDescription: format) else { return }
-                    server.send(.parameters(parameters))
-                }
-                server.send(.frame(data: payload,
-                                   presentationTime: CMSampleBufferGetPresentationTimeStamp(sample),
-                                   isKeyframe: sample.isKeyframe))
-
-                state.lock(); _framesSent += 1; _bytesSent += payload.count; state.unlock()
+            if needsParameters {
+                guard let parameters = VideoParameterSets(formatDescription: format) else { return }
+                server.send(.parameters(parameters))
             }
-        }, completion: completion)
+            server.send(.frame(data: payload,
+                               presentationTime: CMSampleBufferGetPresentationTimeStamp(sample),
+                               isKeyframe: sample.isKeyframe))
+
+            state.lock()
+            _framesSent += 1
+            _bytesSent += payload.count
+            lastSendTime = Date()
+            state.unlock()
+        }
     }
 
     public func stop() {
+        heartbeat?.cancel()
+        heartbeat = nil
         capture?.stop()
         server?.stop()
         encoder?.invalidate()
         display?.invalidate()
-        capture = nil; server = nil; encoder = nil; display = nil
+        capture = nil; server = nil; encoder = nil; display = nil; lastBuffer = nil
     }
 
     deinit { stop() }

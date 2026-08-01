@@ -71,6 +71,23 @@ extension DisplayPreset {
     ]
 }
 
+/// Which edge of the main screen the second display sits against.
+///
+/// Worth choosing rather than accepting. Left to itself macOS drops a new
+/// virtual display on the left, which collides with wherever Universal Control
+/// has put a nearby Mac, and the only way out is dragging rectangles around in
+/// System Settings.
+public enum ScreenPosition: String, CaseIterable, Sendable {
+    case left, right
+
+    public var label: String {
+        switch self {
+        case .left: return "Left"
+        case .right: return "Right"
+        }
+    }
+}
+
 /// Swift-facing wrapper around the private-API virtual display.
 ///
 /// The display exists for as long as this object is retained, so the host must
@@ -120,6 +137,30 @@ public final class VirtualDisplay {
             RunLoop.current.run(mode: .default, before: Date().addingTimeInterval(0.05))
         } while Date() < deadline
         return false
+    }
+
+    /// Moves the display to the chosen side of the main screen.
+    ///
+    /// Applied for this session only. The arrangement is Understudy's to set
+    /// each time it runs, rather than something it should write permanently into
+    /// the user's system display preferences.
+    @discardableResult
+    public func place(_ position: ScreenPosition) -> Bool {
+        let mainBounds = CGDisplayBounds(CGMainDisplayID())
+        let x: CGFloat = position == .left
+            ? mainBounds.minX - CGFloat(preset.pointWidth)
+            : mainBounds.maxX
+
+        var configuration: CGDisplayConfigRef?
+        guard CGBeginDisplayConfiguration(&configuration) == .success,
+              let configuration else { return false }
+
+        guard CGConfigureDisplayOrigin(configuration, displayID,
+                                       Int32(x), Int32(mainBounds.minY)) == .success else {
+            CGCancelDisplayConfiguration(configuration)
+            return false
+        }
+        return CGCompleteDisplayConfiguration(configuration, .forSession) == .success
     }
 
     /// CoreGraphics ID used to target this screen for capture.
