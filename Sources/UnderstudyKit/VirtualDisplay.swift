@@ -78,12 +78,25 @@ extension DisplayPreset {
 /// has put a nearby Mac, and the only way out is dragging rectangles around in
 /// System Settings.
 public enum ScreenPosition: String, CaseIterable, Sendable {
-    case left, right
+    case left, right, above, below
 
     public var label: String {
         switch self {
         case .left: return "Left"
         case .right: return "Right"
+        case .above: return "Above"
+        case .below: return "Below"
+        }
+    }
+
+    /// The edge a window is dragged through to reach it, which is not always the
+    /// same word: a screen placed "above" is reached through the top edge.
+    public var edgeName: String {
+        switch self {
+        case .left: return "left"
+        case .right: return "right"
+        case .above: return "top"
+        case .below: return "bottom"
         }
     }
 }
@@ -147,16 +160,22 @@ public final class VirtualDisplay {
     @discardableResult
     public func place(_ position: ScreenPosition) -> Bool {
         let mainBounds = CGDisplayBounds(CGMainDisplayID())
-        let x: CGFloat = position == .left
-            ? mainBounds.minX - CGFloat(preset.pointWidth)
-            : mainBounds.maxX
+        // CoreGraphics puts the origin top-left with y increasing downwards, so
+        // "above" is a smaller y, not a larger one.
+        let origin: CGPoint
+        switch position {
+        case .left:  origin = CGPoint(x: mainBounds.minX - CGFloat(preset.pointWidth), y: mainBounds.minY)
+        case .right: origin = CGPoint(x: mainBounds.maxX, y: mainBounds.minY)
+        case .above: origin = CGPoint(x: mainBounds.minX, y: mainBounds.minY - CGFloat(preset.pointHeight))
+        case .below: origin = CGPoint(x: mainBounds.minX, y: mainBounds.maxY)
+        }
 
         var configuration: CGDisplayConfigRef?
         guard CGBeginDisplayConfiguration(&configuration) == .success,
               let configuration else { return false }
 
         guard CGConfigureDisplayOrigin(configuration, displayID,
-                                       Int32(x), Int32(mainBounds.minY)) == .success else {
+                                       Int32(origin.x), Int32(origin.y)) == .success else {
             CGCancelDisplayConfiguration(configuration)
             return false
         }

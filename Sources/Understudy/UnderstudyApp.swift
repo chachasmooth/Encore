@@ -121,7 +121,7 @@ struct HostView: View {
                         stat(String(format: "%.1f", mbps), "Mb/s")
                         stat("\(session.droppedFrames)", "dropped")
                     }
-                    Text("Drag a window off the \(ScreenPosition(rawValue: positionRaw)?.label.lowercased() ?? "right") edge of this screen to send it across.")
+                    Text("Drag a window off the \(ScreenPosition(rawValue: positionRaw)?.edgeName ?? "right") edge of this screen to send it across.")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -152,7 +152,7 @@ struct HostView: View {
                 }
                 .pickerStyle(.segmented)
                 .labelsHidden()
-                .frame(width: 220)
+                .frame(width: 320)
 
                 Button("Start") { start() }
                     .buttonStyle(.borderedProminent)
