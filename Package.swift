@@ -7,6 +7,8 @@ let package = Package(
     products: [
         .library(name: "UnderstudyKit", targets: ["UnderstudyKit"]),
         .executable(name: "understudy-probe", targets: ["understudy-probe"]),
+        .executable(name: "understudy-host", targets: ["understudy-host"]),
+        .executable(name: "understudy-client", targets: ["understudy-client"]),
     ],
     targets: [
         // Objective-C shim. Every use of Apple's private virtual-display API is
@@ -22,6 +24,19 @@ let package = Package(
         ),
         .executableTarget(
             name: "understudy-probe",
+            dependencies: ["UnderstudyKit"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        // Runs on the Mac being extended: creates the virtual display, captures
+        // and encodes it, and streams to a paired client.
+        .executableTarget(
+            name: "understudy-host",
+            dependencies: ["UnderstudyKit"],
+            swiftSettings: [.swiftLanguageMode(.v5)]
+        ),
+        // Runs on the spare MacBook: receives frames and draws them fullscreen.
+        .executableTarget(
+            name: "understudy-client",
             dependencies: ["UnderstudyKit"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),

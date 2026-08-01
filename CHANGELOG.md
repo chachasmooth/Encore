@@ -53,6 +53,12 @@ Understudy cannot yet be used as a display. This entry covers foundational work.
   Verified over loopback: discovery by name, paired handshake, 39 of 39 frames
   delivered and decoded, and a client with the wrong code refused.
 
+- `understudy-host` and `understudy-client`: the two halves of the product as
+  command-line tools. The host creates the display, captures, encodes and streams
+  it; the client discovers the host, pairs with the printed code, and draws the
+  frames fullscreen through `AVSampleBufferDisplayLayer`. Verified with both ends
+  running as separate processes on one Mac.
+
 ### Fixed
 
 - The `macBookAir13` preset described the 13.6-inch M2 Air (2560×1664) while

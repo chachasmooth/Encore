@@ -17,15 +17,15 @@
 
 Early development. You cannot use this as a monitor yet.
 
-The virtual display works, frames come off it, and they reach a paired client over the network. Nothing draws them on screen yet, and it has only ever run on one machine talking to itself.
+The whole pipeline works: a virtual display, captured, encoded, streamed to a paired client, and drawn on screen. It has only ever run with both ends on the same Mac, so nothing has crossed real Wi-Fi yet, and it is two command-line tools rather than an app you can double-click.
 
 | Milestone | State |
 |---|---|
 | **1. Virtual display** | Working, verified on macOS 26.5 |
 | **2. Capture frames off that display** | Working, verified on macOS 26.5 |
 | **3. Encode and decode as HEVC** | Working, verified on macOS 26.5 |
-| **4. Send frames over the network** | Working over loopback, two machines untested |
-| 5. Client app that displays them fullscreen | Not started |
+| **4. Send frames over the network** | Working, two machines untested |
+| **5. Client that displays them fullscreen** | Working, two machines untested |
 | 6. One download, pick a role, done | Not started |
 
 Star the repo if you want to hear when it works end to end.
@@ -114,6 +114,26 @@ git clone https://github.com/chachasmooth/Understudy.git
 cd Understudy && swift build
 ```
 
+## Using it
+
+Two command-line tools for now. On the Mac you want to extend:
+
+```bash
+swift run understudy-host 13
+```
+
+The number is the size of the spare MacBook's screen: `13`, `13.6`, `15`, `14` or `16`. It prints a six digit pairing code.
+
+Then on the spare MacBook, with the repository cloned there too:
+
+```bash
+swift run understudy-client 123456
+```
+
+It finds the host on the network, pairs, and fills the screen. Escape or Q quits.
+
+Set `UNDERSTUDY_WINDOWED=1` to run the client in an ordinary window instead of fullscreen, which is the only sane way to test both halves on a single Mac.
+
 ### Trying it
 
 The probe exercises everything built so far on a single machine: it creates the display, captures it, encodes and decodes, then streams real frames to a client over a socket on loopback.
@@ -159,7 +179,8 @@ One more limitation, this one unexplained so far: a process can create a single 
 - [x] Capture the virtual display with ScreenCaptureKit
 - [x] Hardware HEVC encode and decode, tuned for latency ahead of quality
 - [x] Wi-Fi transport with Bonjour discovery and paired TLS
-- [ ] Client app rendering fullscreen through Metal
+- [x] Client rendering the stream fullscreen
+- [ ] Verify across two machines over real Wi-Fi
 - [ ] Pairing, so the two Macs find each other without configuration
 - [ ] Single app bundle with a host and client role picker
 - [ ] Signed, notarized releases
