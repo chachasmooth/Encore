@@ -34,18 +34,4 @@ final class DisplayPresetTests: XCTestCase {
         XCTAssertEqual(Set(sizes).count, sizes.count, "two presets share a resolution")
     }
 
-    func testMatchingFindsPresetByPixelSize() {
-        let target = DisplayPreset.macBookPro14
-        XCTAssertEqual(
-            DisplayPreset.matching(pixelWidth: target.pixelWidth, pixelHeight: target.pixelHeight),
-            target)
-        XCTAssertNil(DisplayPreset.matching(pixelWidth: 12345, pixelHeight: 6789))
-    }
-
-    func testUncompressedBandwidthJustifiesEncoding() {
-        // 3024x1964 at 4 bytes per pixel, 60 times a second, is about 1.4 GB/s —
-        // far beyond even Thunderbolt. This is why frames must be encoded.
-        let gigabytesPerSecond = DisplayPreset.macBookPro14.uncompressedBytesPerSecond / 1_000_000_000
-        XCTAssertGreaterThan(gigabytesPerSecond, 1.0)
-    }
 }

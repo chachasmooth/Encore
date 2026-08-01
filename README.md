@@ -7,60 +7,49 @@
 [![CI](https://github.com/chachasmooth/Understudy/actions/workflows/ci.yml/badge.svg)](https://github.com/chachasmooth/Understudy/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey.svg)](#requirements)
-[![Status](https://img.shields.io/badge/status-early%20development-orange.svg)](#project-status)
-
-*An understudy is the performer who steps in when the lead can't go on.
-Your old MacBook has one more role in it.*
+[![Status](https://img.shields.io/badge/status-early%20development-orange.svg)](#status)
 
 </div>
 
 ---
 
-## Project status
+## Status
 
-**Early development. Not yet usable as a monitor.**
+Early development. You cannot use this as a monitor yet.
 
-The hardest technical question — *can we make macOS believe in a display that
-isn't there?* — is answered and working. Video streaming is not built yet.
+The virtual display works. Nothing streams to it.
 
 | Milestone | State |
 |---|---|
-| **1. Virtual display** — make macOS report an extra Retina monitor | ✅ Working, verified on macOS 26.5 |
-| 2. Capture — pull frames off that display efficiently | ⬜ Not started |
-| 3. Encode & transport — get frames to the other Mac over a cable | ⬜ Not started |
-| 4. Client — decode and render fullscreen | ⬜ Not started |
-| 5. App — one download, pick a role, done | ⬜ Not started |
+| **1. Virtual display** | Working, verified on macOS 26.5 |
+| 2. Capture frames off that display | Not started |
+| 3. Encode and send them over a cable | Not started |
+| 4. Client app that decodes and renders | Not started |
+| 5. One download, pick a role, done | Not started |
 
-Follow along or star the repo if you want to know when it works end to end.
+Star the repo if you want to hear when it works end to end.
 
 ## What it will do
 
-Connect two Macs with a single USB-C cable. The spare one becomes a real
-second display for the main one — drag windows onto it, put your reference
-docs there, extend your desktop.
+Connect two Macs with a USB-C cable. The spare one becomes a second display for the main one. Drag windows onto it, park your reference docs there, extend your desktop the way you would with any monitor.
 
-macOS treats it as genuine hardware, not a screen-sharing window. The cursor
-crosses onto it naturally, windows remember their positions, and it shows up in
-System Settings → Displays like any monitor.
+macOS treats it as attached hardware. The cursor crosses onto it. Windows remember where they were. It appears in System Settings alongside anything else you have plugged in.
 
 ## What it won't do
 
-Being straight with you up front:
+Apple provides no supported way to turn one Mac into a display for another. Sidecar covers iPads and stops there. Understudy fills that gap with private system API, which carries real costs. See [Caveats](#caveats).
 
-- **It is not Sidecar.** Apple provides no supported way to make one Mac act as
-  a display for another. Understudy works around that, and the workaround has
-  real costs — see [Honest caveats](#honest-caveats).
-- **It won't show DRM-protected video.** Netflix, Apple TV+ and similar will
-  render as a black rectangle. macOS refuses to let any app capture protected
-  content, and there is no way around that.
-- **It won't be on the Mac App Store.** It can't be. See below.
+Protected video will not show up. Netflix, Apple TV+ and anything else using DRM will render as a black rectangle. macOS blocks screen capture of protected content at a level no application can reach around.
+
+It will also never appear on the Mac App Store. Private API disqualifies it.
 
 ## Requirements
 
-- Two Macs running **macOS 14 (Sonoma) or later**
-- A **USB-C or Thunderbolt cable** between them (wireless is on the roadmap, but
-  a cable is what makes this feel like a monitor rather than a screen share)
+- Two Macs running macOS 14 (Sonoma) or newer
+- A USB-C or Thunderbolt cable between them
 - Screen Recording permission on the host Mac
+
+Wireless is on the roadmap. A cable comes first because latency decides whether this feels like a monitor or like a laggy screen share, and a direct connection removes most of the problem before it starts.
 
 ## How it works
 
@@ -88,17 +77,13 @@ Being straight with you up front:
                          low-latency transport
 ```
 
-The trick is step one. macOS has no public API for creating a virtual display,
-so Understudy uses a private CoreGraphics interface. Everything that touches it
-is confined to [one file](Sources/CVirtualDisplay/USVirtualDisplay.m) so that a
-future macOS change breaks one small, well-marked place instead of the whole app.
+Step one carries all the risk. macOS exposes no public way to register a virtual monitor, so Understudy calls four undocumented CoreGraphics classes. Every one of those calls lives in [a single file](Sources/CVirtualDisplay/USVirtualDisplay.m). When Apple eventually changes something, one small well-marked place breaks instead of the whole application.
 
-See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for the details, including the
-API quirks that cost real debugging time.
+[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) covers the details, including three display APIs that each fail in a different way and cost a lot of debugging time.
 
 ## Building
 
-You need macOS 14+ and Swift 6 (Xcode Command Line Tools are enough for now):
+macOS 14 or newer, plus Xcode Command Line Tools.
 
 ```bash
 git clone https://github.com/chachasmooth/Understudy.git
@@ -108,17 +93,13 @@ git clone https://github.com/chachasmooth/Understudy.git
 cd Understudy && swift build
 ```
 
-### Try the virtual display
+### Trying the virtual display
 
-This is the part that works today. It creates a Retina display, verifies macOS
-registered it correctly, holds it open so you can see it in System Settings,
-then removes it:
+This part works today. The probe creates a Retina display, checks that macOS registered it at the right geometry, holds it open, then removes it.
 
 ```bash
 swift run understudy-probe 20
 ```
-
-Expected output:
 
 ```
 Verifying macOS sees it
@@ -131,48 +112,36 @@ Verifying macOS sees it
   ✓ Reported as a secondary external display
 ```
 
-While it runs, open System Settings → Displays. You will see a second monitor
-listed, and you can drag windows onto it — they just won't be visible anywhere
-yet, because nothing is streaming them.
+Open System Settings > Displays while it runs and you will find a second monitor listed. Windows dragged onto it disappear, since nothing is streaming them anywhere yet.
 
-## Honest caveats
+## Caveats
 
-**It relies on private Apple API.** There is no public alternative. Every app in
-this category does the same thing. The consequences are real:
+Understudy depends on private Apple API. No public alternative exists, and every application in this category makes the same compromise. What that means in practice:
 
-- It can break with any macOS update. Understudy detects this and reports a
-  clear error rather than crashing, but a break means it stops working until
-  someone updates it.
-- It can never ship on the Mac App Store.
-- Distributed builds need a paid Apple Developer certificate and notarization,
-  or macOS Gatekeeper will refuse to open the app.
+A macOS update can break it. Understudy checks that the classes and methods it needs are still present and reports a clear error if they are not, so you get an explanation rather than a crash. It still stops working until somebody updates it.
 
-**Only one virtual display per process has been observed to work.** Creating a
-second one after destroying the first fails in the same process. This matters
-for supporting several spare MacBooks at once, and needs investigation before
-milestone 5.
+Builds you hand to other people need a paid Apple Developer certificate and notarization. Without those, Gatekeeper refuses to open the app.
+
+One more limitation, this one unexplained so far: a process can create a single virtual display. Releasing it and creating another in the same process fails, and the second display never registers. That needs solving before Understudy can drive more than one spare MacBook.
 
 ## Roadmap
 
-- [x] Create a Retina virtual display and verify macOS accepts it
+- [x] Create a Retina virtual display and confirm macOS accepts it
 - [ ] Capture the virtual display with ScreenCaptureKit
-- [ ] Hardware HEVC encode with VideoToolbox, tuned for latency over quality
+- [ ] Hardware HEVC encode, tuned for latency ahead of quality
 - [ ] Wired transport over Thunderbolt Bridge
-- [ ] Client app: decode and render fullscreen via Metal
-- [ ] Automatic pairing so the two Macs find each other
-- [ ] Single app bundle with a host/client role picker
-- [ ] Signed and notarized releases
+- [ ] Client app decoding and rendering fullscreen through Metal
+- [ ] Pairing, so the two Macs find each other without configuration
+- [ ] Single app bundle with a host and client role picker
+- [ ] Signed, notarized releases
 - [ ] Wireless transport
-- [ ] Multiple client Macs
+- [ ] More than one client Mac
 
-Non-goals for now: using the spare Mac's keyboard and trackpad to control the
-host, iPad support (Sidecar already does that), and Windows or Linux clients.
+Out of scope for now: driving the host from the spare Mac's keyboard and trackpad, iPad support, and clients on Windows or Linux.
 
 ## Contributing
 
-Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md). If you're
-here because you also thought "surely my old laptop can be a monitor", you're in
-the right place.
+See [CONTRIBUTING.md](CONTRIBUTING.md). Compatibility reports are useful even when everything works, since the private API this relies on can shift between macOS releases and there is no way to know without people running it.
 
 ## License
 

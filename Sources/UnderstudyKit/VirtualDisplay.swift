@@ -31,12 +31,6 @@ public struct DisplayPreset: Sendable, Equatable {
 
     public var pixelWidth: UInt32 { pointWidth * scaleFactor }
     public var pixelHeight: UInt32 { pointHeight * scaleFactor }
-
-    /// Pixels per second at the given rate — the raw, uncompressed bandwidth the
-    /// transport would need if frames were sent without encoding.
-    public var uncompressedBytesPerSecond: Double {
-        Double(pixelWidth) * Double(pixelHeight) * 4.0 * refreshRate
-    }
 }
 
 extension DisplayPreset {
@@ -48,12 +42,6 @@ extension DisplayPreset {
     public static let macBookPro16 = DisplayPreset(name: "MacBook Pro 16\"", pointWidth: 1728, pointHeight: 1117)
 
     public static let all: [DisplayPreset] = [macBookAir13, macBookAir15, macBookPro14, macBookPro16]
-
-    /// Best preset for a physical screen of the given pixel size, or nil when
-    /// nothing matches closely enough to be worth snapping to.
-    public static func matching(pixelWidth: UInt32, pixelHeight: UInt32) -> DisplayPreset? {
-        all.first { $0.pixelWidth == pixelWidth && $0.pixelHeight == pixelHeight }
-    }
 }
 
 /// Swift-facing wrapper around the private-API virtual display.
@@ -114,10 +102,6 @@ public final class VirtualDisplay {
 
     /// CoreGraphics ID used to target this screen for capture.
     public var displayID: CGDirectDisplayID { backing.displayID }
-
-    public var pixelWidth: UInt32 { backing.pixelWidth }
-    public var pixelHeight: UInt32 { backing.pixelHeight }
-    public var isValid: Bool { backing.isValid }
 
     /// Invoked on the main queue if macOS tears the display down unprompted.
     public var onTerminated: (() -> Void)? {
