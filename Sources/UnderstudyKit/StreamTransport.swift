@@ -191,6 +191,9 @@ public final class StreamClient {
     public var onConnected: (() -> Void)?
     public var onDisconnected: ((Error?) -> Void)?
     public var onError: ((Error) -> Void)?
+    /// Connection is stuck retrying rather than failing outright. Usually a host
+    /// that is advertising but not listening, or a wrong pairing code.
+    public var onWaiting: ((NWError) -> Void)?
     /// Reports hosts as Bonjour finds them, for a picker.
     public var onHostsChanged: (([NWBrowser.Result]) -> Void)?
 
@@ -225,6 +228,13 @@ public final class StreamClient {
                 onDisconnected?(error)
             case .cancelled:
                 onDisconnected?(nil)
+            case .waiting(let error):
+                // Network framework retries a waiting connection forever without
+                // ever reaching .failed. Left unreported it looks exactly like a
+                // successful connection that has gone quiet, so it has to be
+                // surfaced or a wrong code and a dead host are indistinguishable
+                // from working.
+                onWaiting?(error)
             default:
                 break
             }

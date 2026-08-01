@@ -12,6 +12,7 @@ public final class ClientSession {
     private let state = NSLock()
     private var format: CMFormatDescription?
     private var connecting = false
+    private var awaitingKeyframe = false
     private var _framesReceived = 0
     private var _lastArrival: CFAbsoluteTime?
     private var _gaps: [Double] = []
@@ -72,6 +73,16 @@ public final class ClientSession {
             self?.onStatus?("Error: \(error.localizedDescription)")
         }
 
+        client.onWaiting = { [weak self] error in
+            // Almost always one of two things, and the user can act on both, so
+            // say them rather than showing the raw network error.
+            self?.onStatus?("""
+            Cannot reach the host. Check that the other Mac has \
+            "Extend this Mac" running and started, and that the code matches. \
+            (\(error.localizedDescription))
+            """)
+        }
+
         client.onMessage = { [weak self] message in
             guard let self else { return }
             switch message {
@@ -79,9 +90,17 @@ public final class ClientSession {
                 guard let rebuilt = parameters.makeFormatDescription() else { return }
                 state.lock(); format = rebuilt; state.unlock()
 
-            case .frame(let data, let time, _):
+            case .frame(let data, let time, let isKeyframe):
                 state.lock()
                 let current = format
+                // After the display layer is flushed its decoder has nothing to
+                // reference, so a delta frame fails and triggers another flush,
+                // forever. Skip ahead to the next self-contained frame instead.
+                if awaitingKeyframe && !isKeyframe {
+                    state.unlock()
+                    return
+                }
+                if isKeyframe { awaitingKeyframe = false }
                 let now = CFAbsoluteTimeGetCurrent()
                 if let last = _lastArrival { _gaps.append((now - last) * 1000) }
                 _lastArrival = now
@@ -96,6 +115,12 @@ public final class ClientSession {
                 onFrame?(sample)
             }
         }
+    }
+
+    /// Call after flushing the display layer, so frames resume from the next
+    /// self-contained one rather than from a delta the decoder cannot use.
+    public func resyncAfterFlush() {
+        state.lock(); awaitingKeyframe = true; state.unlock()
     }
 
     public func start() {

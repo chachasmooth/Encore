@@ -95,10 +95,11 @@ public final class FrameEncoder {
         try set(kVTCompressionPropertyKey_ExpectedFrameRate, NSNumber(value: frameRate))
         try set(kVTCompressionPropertyKey_AverageBitRate,
                 NSNumber(value: Int(bitrateMbps * 1_000_000)))
-        // Keyframes cost far more bits than delta frames. On a reliable cable
-        // they are only needed so a client joining late has something to start
-        // from, so they can be sparse.
-        try set(kVTCompressionPropertyKey_MaxKeyFrameInterval, NSNumber(value: frameRate * 5))
+        // Keyframes cost far more bits than delta frames, but they are the only
+        // way a client recovers after its decoder is reset. Two seconds bounds
+        // how long a frozen picture can persist; five seconds was long enough to
+        // look like a crash.
+        try set(kVTCompressionPropertyKey_MaxKeyFrameInterval, NSNumber(value: frameRate * 2))
 
         VTCompressionSessionPrepareToEncodeFrames(session)
 

@@ -87,6 +87,7 @@ struct HostView: View {
     @State private var session: HostSession?
     @State private var problem: String?
     @State private var connected = false
+    @State private var stopped = false
     @State private var fps = 0.0
     @State private var mbps = 0.0
     @State private var lastFrames = 0
@@ -123,6 +124,19 @@ struct HostView: View {
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
+
+                Button("Stop", role: .destructive) { stop() }
+                    .controlSize(.large)
+            } else if stopped {
+                Text("Stopped").font(.title2)
+                Text("The second screen has been removed. macOS only allows one virtual display per app session, so starting again needs Understudy relaunched.")
+                    .font(.callout)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: 420)
+                Button("Quit Understudy") { NSApp.terminate(nil) }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
             } else {
                 Text("Which MacBook is the second screen?").font(.title2)
                 Picker("", selection: $preset) {
@@ -173,6 +187,13 @@ struct HostView: View {
             }
         }
         self.session = session
+    }
+
+    private func stop() {
+        session?.stop()
+        session = nil
+        connected = false
+        stopped = true
     }
 
     private func refresh() {
@@ -236,7 +257,12 @@ struct ClientView: View {
         session.onFrame = { sample in
             markDisplayImmediately(sample)
             DispatchQueue.main.async {
-                if layer.status == .failed { layer.flush() }
+                if layer.status == .failed {
+                    layer.flush()
+                    // The flushed decoder cannot use a delta frame, so wait for
+                    // the next keyframe rather than failing again immediately.
+                    session.resyncAfterFlush()
+                }
                 layer.enqueue(sample)
                 if !showingVideo {
                     showingVideo = true
