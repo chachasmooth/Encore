@@ -126,6 +126,8 @@ struct HostView: View {
                         .foregroundStyle(.tertiary)
                 }
 
+                positionPicker
+
                 Button("Stop", role: .destructive) { stop() }
                     .controlSize(.large)
             } else if stopped {
@@ -146,13 +148,7 @@ struct HostView: View {
                 .labelsHidden()
                 .frame(width: 320)
 
-                Text("Which side of this screen?").font(.callout).foregroundStyle(.secondary)
-                Picker("", selection: $positionRaw) {
-                    ForEach(ScreenPosition.allCases, id: \.rawValue) { Text($0.label).tag($0.rawValue) }
-                }
-                .pickerStyle(.segmented)
-                .labelsHidden()
-                .frame(width: 320)
+                positionPicker
 
                 Button("Start") { start() }
                     .buttonStyle(.borderedProminent)
@@ -170,6 +166,24 @@ struct HostView: View {
         .padding(40)
         .frame(width: 560)
         .onReceive(tick) { _ in refresh() }
+    }
+
+    /// Shown both before starting and while streaming, since moving the second
+    /// screen is exactly the sort of thing you work out you want once you can
+    /// see it.
+    private var positionPicker: some View {
+        VStack(spacing: 6) {
+            Text("Which side of this screen?").font(.callout).foregroundStyle(.secondary)
+            Picker("", selection: $positionRaw) {
+                ForEach(ScreenPosition.allCases, id: \.rawValue) { Text($0.label).tag($0.rawValue) }
+            }
+            .pickerStyle(.segmented)
+            .labelsHidden()
+            .frame(width: 340)
+            .onChange(of: positionRaw) { _, raw in
+                if let position = ScreenPosition(rawValue: raw) { session?.move(to: position) }
+            }
+        }
     }
 
     private func stat(_ value: String, _ label: String) -> some View {

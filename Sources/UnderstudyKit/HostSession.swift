@@ -10,7 +10,7 @@ public final class HostSession {
     public let pairingCode: String
     public let preset: DisplayPreset
     public let serviceName: String
-    public let position: ScreenPosition
+    public private(set) var position: ScreenPosition
 
     private var display: VirtualDisplay?
     private var capture: DisplayCapture?
@@ -176,6 +176,17 @@ public final class HostSession {
             lastSendTime = Date()
             state.unlock()
         }
+    }
+
+    /// Moves the second screen to another edge while it is in use.
+    ///
+    /// Safe mid-stream: the display keeps its identity and the capture session
+    /// follows it, so only the arrangement changes.
+    @discardableResult
+    public func move(to newPosition: ScreenPosition) -> Bool {
+        guard display?.place(newPosition) == true else { return false }
+        position = newPosition
+        return true
     }
 
     public func stop() {
