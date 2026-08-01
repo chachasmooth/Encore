@@ -1,5 +1,6 @@
 import AppKit
 import CoreGraphics
+import CoreVideo
 import Foundation
 import UnderstudyKit
 
@@ -27,6 +28,34 @@ func note(_ text: String) { print("    \(text)") }
 // screens, which would cache a screen list from before the virtual display
 // existed — and a bare run loop never refreshes it. A real GUI app is unaffected
 // because it creates its displays after NSApp is already running.
+
+/// Average brightness of a BGRA frame, 0 for black and 1 for white.
+///
+/// Exists to catch the case that looks most like success: without Screen
+/// Recording permission macOS still delivers frames at the right size, they are
+/// just entirely black.
+func meanBrightness(_ buffer: CVPixelBuffer) -> Double {
+    CVPixelBufferLockBaseAddress(buffer, .readOnly)
+    defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
+    guard let base = CVPixelBufferGetBaseAddress(buffer) else { return 0 }
+
+    let width = CVPixelBufferGetWidth(buffer)
+    let height = CVPixelBufferGetHeight(buffer)
+    let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
+    let pixels = base.assumingMemoryBound(to: UInt8.self)
+
+    // Sampling a grid. Six million pixels is far more than "is this black?" needs.
+    var total = 0.0
+    var samples = 0
+    for y in stride(from: 0, to: height, by: 16) {
+        for x in stride(from: 0, to: width, by: 16) {
+            let offset = y * bytesPerRow + x * 4
+            total += (Double(pixels[offset]) + Double(pixels[offset + 1]) + Double(pixels[offset + 2])) / 3
+            samples += 1
+        }
+    }
+    return samples > 0 ? total / Double(samples) / 255 : 0
+}
 
 /// Runs the run loop for a while so pending notifications land.
 func pump(_ seconds: TimeInterval) {
@@ -131,14 +160,102 @@ if !info.isMain, !info.isBuiltIn {
     problems += 1
 }
 
-heading("Holding")
-note("The display is live for \(Int(holdSeconds))s.")
-note("Open System Settings > Displays, or drag a window off the right edge, to see it.")
-note("Press Ctrl-C to stop early.")
+heading("Capturing frames")
 
-// Ctrl-C needs no handler: killing the process releases the CGVirtualDisplay,
-// and the window server reclaims the display on its own.
-pump(holdSeconds)
+if !ScreenRecordingPermission.isGranted {
+    fail("Screen Recording permission has not been granted")
+    note("macOS should be showing a permission dialog now. Approve the terminal")
+    note("in System Settings > Privacy & Security > Screen Recording, restart it,")
+    note("then run this again. Capture cannot be tested until then.")
+    ScreenRecordingPermission.request()
+    problems += 1
+} else {
+    pass("Screen Recording permission granted")
+
+    let capture = DisplayCapture(displayID: display.displayID,
+                                 pixelWidth: Int(preset.pixelWidth),
+                                 pixelHeight: Int(preset.pixelHeight))
+    capture.onStopped = { fail("Capture stopped on its own: \($0.localizedDescription)") }
+
+    // Frames arrive on a background queue, so everything they touch is locked.
+    let lock = NSLock()
+    var frameCount = 0
+    var firstFrame: (width: Int, height: Int, brightness: Double)?
+    var startFinished = false
+    var startError: Error?
+
+    capture.start(onFrame: { buffer in
+        lock.lock()
+        frameCount += 1
+        let needsMeasurement = firstFrame == nil
+        lock.unlock()
+
+        guard needsMeasurement else { return }
+        let measured = (CVPixelBufferGetWidth(buffer),
+                        CVPixelBufferGetHeight(buffer),
+                        meanBrightness(buffer))
+        lock.lock()
+        if firstFrame == nil { firstFrame = measured }
+        lock.unlock()
+    }, completion: { error in
+        lock.lock()
+        startError = error
+        startFinished = true
+        lock.unlock()
+    })
+
+    let startDeadline = Date().addingTimeInterval(10)
+    while Date() < startDeadline {
+        lock.lock(); let done = startFinished; lock.unlock()
+        if done { break }
+        pump(0.05)
+    }
+
+    lock.lock(); let failure = startError; let finished = startFinished; lock.unlock()
+
+    if !finished {
+        fail("Capture did not start within 10s")
+        problems += 1
+    } else if let failure {
+        fail("Capture failed to start: \(failure.localizedDescription)")
+        problems += 1
+    } else {
+        pass("Capture started")
+        note("Capturing for \(Int(holdSeconds))s. The display is live meanwhile, so")
+        note("open System Settings > Displays or drag a window onto it to see it.")
+        pump(holdSeconds)
+
+        lock.lock(); let frames = frameCount; let first = firstFrame; lock.unlock()
+        let idle = capture.idleFrameCount
+        capture.stop()
+
+        if let first {
+            pass("Frames are arriving")
+
+            if first.width == Int(preset.pixelWidth), first.height == Int(preset.pixelHeight) {
+                pass("Frame size matches the display: \(first.width)×\(first.height) px")
+            } else {
+                fail("Frames are \(first.width)×\(first.height) px, "
+                     + "expected \(preset.pixelWidth)×\(preset.pixelHeight)")
+                problems += 1
+            }
+
+            if first.brightness > 0.01 {
+                pass(String(format: "Frames contain an image (mean brightness %.3f)", first.brightness))
+            } else {
+                fail("Frames are black, which usually means Screen Recording permission "
+                     + "is granted to a different app than the one running this")
+                problems += 1
+            }
+        } else {
+            fail("No frames with new content arrived in \(Int(holdSeconds))s")
+            problems += 1
+        }
+
+        note("\(frames) frames with new content, \(idle) unchanged")
+        note("An empty desktop changes nothing, so most frames being idle is correct.")
+    }
+}
 
 heading("Tearing down")
 let idBeforeTeardown = display.displayID
