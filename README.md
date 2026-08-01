@@ -151,4 +151,4 @@ Use it, change it, share it. If you distribute a modified version, you have to
 release your changes under the same licence. That keeps Understudy open, and
 stops anyone shipping a closed commercial fork of it.
 
-Copyright (C) 2026 Understudy contributors
+Copyright (C) 2026 chachasmooth
