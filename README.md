@@ -46,11 +46,31 @@ It will also never appear on the Mac App Store. Private API disqualifies it.
 
 ## Requirements
 
-- Two Macs running macOS 14 (Sonoma) or newer
-- A USB-C or Thunderbolt cable between them
+- Two Apple Silicon MacBooks, M1 or newer, running macOS 14 (Sonoma) or later
+- A **Thunderbolt** cable between them
 - Screen Recording permission on the host Mac
 
+Every M-series MacBook has hardware HEVC encoding and decoding and Thunderbolt on every port, which is why the requirement is drawn there. Intel Macs are untested.
+
+The cable is the part people get wrong. A USB-C cable that fits is not necessarily a Thunderbolt cable, and many are charge-only or USB 2. Thunderbolt Bridge, which Understudy uses to reach the other Mac, needs a real Thunderbolt cable. Look for a lightning-bolt symbol near the connector or a 40Gb/s marking.
+
+**MacBook Neo is not supported for wired use.** It has no Thunderbolt at all, just one USB 3 and one USB 2 port, so it cannot join a Thunderbolt Bridge. Its A18 Pro decodes HEVC in hardware perfectly well, so it becomes usable as soon as wireless transport lands.
+
 Wireless is on the roadmap. A cable comes first because latency decides whether this feels like a monitor or like a laggy screen share, and a direct connection removes most of the problem before it starts.
+
+### Supported panels
+
+The spare MacBook gets a virtual display matching its own screen exactly, so nothing is rescaled.
+
+| Model | Native | Sent as |
+|---|---|---|
+| Air 13.3-inch (M1), Pro 13.3-inch (M1, M2) | 2560×1600 | 1280×800 at 2x |
+| Air 13.6-inch (M2 onwards) | 2560×1664 | 1280×832 at 2x |
+| Air 15.3-inch (M2 onwards) | 2880×1864 | 1440×932 at 2x |
+| Pro 14.2-inch (M1 Pro onwards) | 3024×1964 | 1512×982 at 2x |
+| Pro 16.2-inch (M1 Pro onwards) | 3456×2234 | 1728×1117 at 2x |
+
+Six models, five resolutions, and Apple has not changed any of them between the M1 and the M5.
 
 ## How it works
 

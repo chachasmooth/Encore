@@ -41,8 +41,10 @@ Understudy cannot yet be used as a display. This entry covers foundational work.
 
 - The `macBookAir13` preset described the 13.6-inch M2 Air (2560×1664) while
   being named for the 13-inch. The 13.3-inch Air, including the M1, is 2560×1600.
-  Both panels now have their own preset, since streaming the wrong one means a
-  rescale on every frame and the wrong aspect ratio.
+  Presets are now the five distinct panel resolutions across every MacBook from
+  the M1 to the M5, checked against Apple's published specifications rather than
+  memory. Streaming the wrong one means the wrong aspect ratio and a rescale on
+  every frame.
 
 ### Changed
 

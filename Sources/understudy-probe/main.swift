@@ -117,7 +117,7 @@ for id in idsBefore.sorted() {
 
 // Targets the client MacBook's panel, not this one, since that is the geometry
 // that will actually be encoded and sent.
-let preset = DisplayPreset.macBookAir13
+let preset = DisplayPreset.macBook13
 
 heading("Creating virtual display")
 note("Requesting \(preset.name): \(preset.pointWidth)×\(preset.pointHeight) pts "
