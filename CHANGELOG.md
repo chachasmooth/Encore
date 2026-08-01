@@ -37,6 +37,13 @@ Understudy cannot yet be used as a display. This entry covers foundational work.
   tripping captured frames at 3024×1964 with the image intact: encode 10 to
   13 ms per frame on hardware, decode about 5 ms.
 
+### Fixed
+
+- The `macBookAir13` preset described the 13.6-inch M2 Air (2560×1664) while
+  being named for the 13-inch. The 13.3-inch Air, including the M1, is 2560×1600.
+  Both panels now have their own preset, since streaming the wrong one means a
+  rescale on every frame and the wrong aspect ratio.
+
 ### Changed
 
 - Licensed under GPL-3.0 instead of MIT, so modified versions distributed to

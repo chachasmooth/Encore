@@ -34,14 +34,27 @@ public struct DisplayPreset: Sendable, Equatable {
 }
 
 extension DisplayPreset {
-    /// Native geometries of recent MacBook panels, expressed as the default
-    /// "looks like" point size at 2x.
-    public static let macBookAir13 = DisplayPreset(name: "MacBook Air 13\"", pointWidth: 1280, pointHeight: 832)
-    public static let macBookAir15 = DisplayPreset(name: "MacBook Air 15\"", pointWidth: 1440, pointHeight: 932)
-    public static let macBookPro14 = DisplayPreset(name: "MacBook Pro 14\"", pointWidth: 1512, pointHeight: 982)
-    public static let macBookPro16 = DisplayPreset(name: "MacBook Pro 16\"", pointWidth: 1728, pointHeight: 1117)
+    /// Native panel geometries, expressed as the point size that lands exactly
+    /// on the panel's real pixels at 2x. Matching one means no rescale on the
+    /// client, which is both sharper and cheaper.
+    ///
+    /// The two 13-inch Airs are genuinely different panels and are easy to
+    /// confuse: the 13.3-inch is 2560×1600 and the 13.6-inch is 2560×1664.
 
-    public static let all: [DisplayPreset] = [macBookAir13, macBookAir15, macBookPro14, macBookPro16]
+    /// 13.3-inch Air, 2560×1600. Intel Retina models and the M1.
+    public static let macBookAir13 = DisplayPreset(name: "MacBook Air 13.3-inch", pointWidth: 1280, pointHeight: 800)
+    /// 13.6-inch Air, 2560×1664. M2 and later.
+    public static let macBookAir13_6 = DisplayPreset(name: "MacBook Air 13.6-inch", pointWidth: 1280, pointHeight: 832)
+    /// 15.3-inch Air, 2880×1864.
+    public static let macBookAir15 = DisplayPreset(name: "MacBook Air 15-inch", pointWidth: 1440, pointHeight: 932)
+    /// 14-inch Pro, 3024×1964.
+    public static let macBookPro14 = DisplayPreset(name: "MacBook Pro 14-inch", pointWidth: 1512, pointHeight: 982)
+    /// 16-inch Pro, 3456×2234.
+    public static let macBookPro16 = DisplayPreset(name: "MacBook Pro 16-inch", pointWidth: 1728, pointHeight: 1117)
+
+    public static let all: [DisplayPreset] = [
+        macBookAir13, macBookAir13_6, macBookAir15, macBookPro14, macBookPro16,
+    ]
 }
 
 /// Swift-facing wrapper around the private-API virtual display.
