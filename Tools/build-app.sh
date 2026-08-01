@@ -52,9 +52,9 @@ codesign --force --sign - --identifier com.understudy.app --timestamp=none "$APP
 codesign --verify --verbose=2 "$APP"
 
 echo "Zipping..."
-ditto -c -k --keepParent "$APP" "build/Understudy-$VERSION.zip"
+ditto -c -k --keepParent "$APP" "build/Understudy.zip"
 
 echo
 echo "Built $APP"
-echo "Release archive: build/Understudy-$VERSION.zip"
+echo "Release archive: build/Understudy.zip"
 codesign -dv "$APP" 2>&1 | grep -E "Identifier|Signature"

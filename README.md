@@ -114,19 +114,31 @@ git clone https://github.com/chachasmooth/Understudy.git
 cd Understudy && swift build
 ```
 
-## Using it
+## Installing
 
-Download `Understudy.app` from [Releases](https://github.com/chachasmooth/Understudy/releases), drag it to Applications, and clear the quarantine flag:
+```bash
+curl -fsSL https://raw.githubusercontent.com/chachasmooth/Understudy/main/install.sh | bash
+```
+
+That downloads the latest release, puts it in `/Applications`, and clears the macOS quarantine flag. Then open it from Spotlight.
+
+The quarantine step is needed because Understudy is not signed with a paid Apple Developer certificate, so macOS treats it as an unidentified download and refuses to open it. The install script says so while it runs rather than doing it quietly.
+
+If you would rather not pipe a URL into a shell, which is a reasonable thing to prefer, do the same three things by hand. Download `Understudy.zip` from [Releases](https://github.com/chachasmooth/Understudy/releases), unzip it into `/Applications`, then:
 
 ```bash
 xattr -dr com.apple.quarantine /Applications/Understudy.app
 ```
 
-That command is needed because Understudy is not signed with an Apple Developer certificate, which costs $99 a year and this is a hobby project. macOS refuses to open unidentified downloads without it. The source is right here if you would rather read it than trust it, and building it yourself skips the whole issue.
+## Using it
 
-Open the app on both Macs. On the one you want to extend, choose **Extend this Mac** and pick which MacBook is acting as the screen. It shows a six digit code. On the spare, choose **Be the second screen** and enter that code. It goes fullscreen and starts drawing. Escape leaves fullscreen.
+Open Understudy on both Macs.
 
-The host Mac will ask for Screen Recording permission the first time, and the spare will ask for Local Network access. Both are required.
+On the Mac you want to extend, choose **Extend this Mac** and pick which MacBook is acting as the screen. It shows a six digit code.
+
+On the spare, choose **Be the second screen** and enter that code. It fills the screen and starts drawing. Escape leaves fullscreen.
+
+The host asks for Screen Recording permission the first time, and the spare asks for Local Network access. Both are required, and macOS may need the app restarted after granting.
 
 ### Building it yourself
 
