@@ -140,17 +140,44 @@ perfectly good capture of one also averages near zero. The probe therefore tests
 the *peak* pixel value, which only real content can raise, and writes the first
 frame to a PNG so the question can be settled by looking.
 
+## Encoding
+
+`FrameEncoder` and `FrameDecoder` wrap VideoToolbox HEVC. B-frames are disabled,
+because a B-frame references a future frame and the encoder cannot emit anything
+until that frame arrives, which is unusable for live output.
+
+**Do not set `EnableLowLatencyRateControl`.** The name suggests exactly what this
+project wants, and it does the opposite: on macOS 26 it forces HEVC onto the
+software encoder. Measured at 3024×1964:
+
+| Configuration | Hardware | ms/frame |
+|---|---|---|
+| Low-latency rate control | no | 12.4 |
+| Default rate control | yes | 6.3 |
+
+It does produce smaller frames, but bitrate is not the constraint over a cable
+and latency is the whole product. `FrameEncoder.isHardwareAccelerated` reports
+what VideoToolbox actually picked, and the probe fails if it is software, so a
+future regression here surfaces immediately instead of as vague sluggishness.
+
+Pixel format barely matters, incidentally. Feeding the encoder BGRA rather than
+4:2:0 YUV costs about 0.2 ms per frame at this size, so capture stays BGRA and
+frames can be inspected without a conversion step.
+
+Round-trip measurements on an idle desktop: encode 10 to 13 ms per frame, decode
+about 5 ms, output identical in size to the input and visually intact. Compression
+lands between 6000:1 and 9000:1, though that number flatters itself on a mostly
+static screen and will fall sharply with real content in motion.
+
 ## Planned pipeline
 
-Milestones 3 and 4, not yet built:
+Milestones 4 and 5, not yet built:
 
-1. **Encode** — `VideoToolbox` hardware HEVC. Low-latency mode, no B-frames,
-   real-time priority. Quality is traded for latency deliberately.
-2. **Transport** — length-prefixed frames over TCP on the Thunderbolt Bridge
+1. **Transport** — length-prefixed frames over TCP on the Thunderbolt Bridge
    interface. A direct cable gives 10 Gbps and near-zero loss, so the first
    implementation needs no congestion control or retransmission — complexity
    that only wireless will require.
-3. **Render** — hardware decode into a `CAMetalLayer`, presented fullscreen.
+2. **Render** — decoded frames into a `CAMetalLayer`, presented fullscreen.
 
 The latency target is **under 30 ms glass-to-glass**. Past roughly 60 ms it
 stops feeling like a monitor and starts feeling like screen sharing, which is

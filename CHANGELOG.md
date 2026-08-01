@@ -33,6 +33,10 @@ Understudy cannot yet be used as a display. This entry covers foundational work.
   black, so the probe tests peak pixel value rather than average brightness and
   writes the first frame to a PNG for inspection.
 
+- `FrameEncoder` and `FrameDecoder` wrap VideoToolbox HEVC. Verified round
+  tripping captured frames at 3024×1964 with the image intact: encode 10 to
+  13 ms per frame on hardware, decode about 5 ms.
+
 ### Changed
 
 - Licensed under GPL-3.0 instead of MIT, so modified versions distributed to

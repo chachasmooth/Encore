@@ -1,6 +1,7 @@
 import AppKit
 import CoreGraphics
 import CoreImage
+import CoreMedia
 import CoreVideo
 import Foundation
 import UnderstudyKit
@@ -189,6 +190,8 @@ if !info.isMain, !info.isBuiltIn {
 
 heading("Capturing frames")
 
+var captureVerified = false
+
 if !ScreenRecordingPermission.isGranted {
     fail("Screen Recording permission has not been granted")
     note("macOS should be showing a permission dialog now. Approve the terminal")
@@ -270,6 +273,7 @@ if !ScreenRecordingPermission.isGranted {
 
             if first.width == Int(preset.pixelWidth), first.height == Int(preset.pixelHeight) {
                 pass("Frame size matches the display: \(first.width)×\(first.height) px")
+                captureVerified = true
             } else {
                 fail("Frames are \(first.width)×\(first.height) px, "
                      + "expected \(preset.pixelWidth)×\(preset.pixelHeight)")
@@ -301,6 +305,175 @@ if !ScreenRecordingPermission.isGranted {
 
         note("\(frames) frames with new content, \(idle) unchanged")
         note("An empty desktop changes nothing, so most frames being idle is correct.")
+    }
+}
+
+heading("Encoding and decoding")
+
+if !captureVerified {
+    note("Skipped, since capture did not produce usable frames.")
+} else {
+    do {
+        let encoder = try FrameEncoder(pixelWidth: Int(preset.pixelWidth),
+                                       pixelHeight: Int(preset.pixelHeight),
+                                       frameRate: Int(preset.refreshRate))
+        let decoder = FrameDecoder()
+        pass("HEVC encoder and decoder created")
+
+        if encoder.isHardwareAccelerated {
+            pass("Encoder is hardware accelerated")
+        } else {
+            fail("Encoder fell back to software, which roughly doubles frame time")
+            problems += 1
+        }
+
+        let lock = NSLock()
+        var encodedCount = 0
+        var decodedCount = 0
+        var keyframes = 0
+        var encodedBytes = 0
+        var encodeNanos: UInt64 = 0
+        var decodeNanos: UInt64 = 0
+        var firstError: String?
+        var sourceStats: (mean: Double, peak: Int)?
+        var decodedStats: (width: Int, height: Int, mean: Double, peak: Int)?
+        var frameIndex: Int64 = 0
+
+        let capture = DisplayCapture(displayID: display.displayID,
+                                     pixelWidth: Int(preset.pixelWidth),
+                                     pixelHeight: Int(preset.pixelHeight))
+
+        capture.start(onFrame: { buffer in
+            // Measured before encoding so the source buffer never has to outlive
+            // this callback; ScreenCaptureKit recycles it from a pool.
+            let source = frameBrightness(buffer)
+
+            lock.lock()
+            let time = CMTime(value: frameIndex, timescale: CMTimeScale(preset.refreshRate))
+            frameIndex += 1
+            lock.unlock()
+
+            let encodeStart = DispatchTime.now().uptimeNanoseconds
+            encoder.encode(buffer, at: time) { result in
+                let encodeEnd = DispatchTime.now().uptimeNanoseconds
+                switch result {
+                case .failure(let error):
+                    lock.lock()
+                    if firstError == nil { firstError = error.localizedDescription }
+                    lock.unlock()
+
+                case .success(let sample):
+                    lock.lock()
+                    encodedCount += 1
+                    encodedBytes += sample.encodedByteCount
+                    encodeNanos += encodeEnd - encodeStart
+                    if sample.isKeyframe { keyframes += 1 }
+                    lock.unlock()
+
+                    let decodeStart = DispatchTime.now().uptimeNanoseconds
+                    decoder.decode(sample) { decoded in
+                        let decodeEnd = DispatchTime.now().uptimeNanoseconds
+                        switch decoded {
+                        case .failure(let error):
+                            lock.lock()
+                            if firstError == nil { firstError = error.localizedDescription }
+                            lock.unlock()
+
+                        case .success(let pixels):
+                            let stats = frameBrightness(pixels)
+                            let size = (CVPixelBufferGetWidth(pixels), CVPixelBufferGetHeight(pixels))
+                            lock.lock()
+                            decodedCount += 1
+                            decodeNanos += decodeEnd - decodeStart
+                            if decodedStats == nil {
+                                sourceStats = source
+                                decodedStats = (size.0, size.1, stats.mean, stats.peak)
+                            }
+                            lock.unlock()
+                        }
+                    }
+                }
+            }
+        }, completion: { error in
+            if let error {
+                fail("Capture failed to restart: \(error.localizedDescription)")
+                problems += 1
+            }
+        })
+
+        pump(min(holdSeconds, 8))
+        encoder.flush()
+        pump(0.4)
+        capture.stop()
+
+        lock.lock()
+        let encoded = encodedCount, decoded = decodedCount, keys = keyframes
+        let bytes = encodedBytes, encodeTime = encodeNanos, decodeTime = decodeNanos
+        let error = firstError, source = sourceStats, result = decodedStats
+        lock.unlock()
+
+        if let error {
+            fail("Coding error: \(error)")
+            problems += 1
+        }
+
+        if encoded > 0 {
+            pass("\(encoded) frames encoded (\(keys) keyframes)")
+        } else {
+            fail("No frames were encoded")
+            problems += 1
+        }
+
+        if decoded > 0 {
+            pass("\(decoded) frames decoded back")
+        } else {
+            fail("No frames were decoded")
+            problems += 1
+        }
+
+        if let result {
+            if result.width == Int(preset.pixelWidth), result.height == Int(preset.pixelHeight) {
+                pass("Decoded frames are full size: \(result.width)×\(result.height) px")
+            } else {
+                fail("Decoded frames are \(result.width)×\(result.height) px, "
+                     + "expected \(preset.pixelWidth)×\(preset.pixelHeight)")
+                problems += 1
+            }
+
+            // HEVC is lossy, so the round trip will not be identical. What
+            // matters is that the picture survived rather than arriving blank or
+            // scrambled, so compare against the source frame's own numbers.
+            if let source {
+                let peakDrift = abs(Double(result.peak - source.peak)) / Double(max(source.peak, 1))
+                if result.peak > 32, peakDrift < 0.35 {
+                    pass(String(format: "Image survived the round trip (peak %d vs %d source)",
+                                result.peak, source.peak))
+                } else {
+                    fail(String(format: "Round trip lost the image (peak %d vs %d source)",
+                                result.peak, source.peak))
+                    problems += 1
+                }
+            }
+        }
+
+        if encoded > 0 {
+            let rawBytes = Int(preset.pixelWidth) * Int(preset.pixelHeight) * 4
+            let averageBytes = bytes / encoded
+            note(String(format: "%.1f KB per frame average, down from %.1f MB raw (%.0f:1)",
+                        Double(averageBytes) / 1024,
+                        Double(rawBytes) / 1_048_576,
+                        Double(rawBytes) / Double(max(averageBytes, 1))))
+            note(String(format: "encode %.2f ms/frame, decode %.2f ms/frame",
+                        Double(encodeTime) / Double(encoded) / 1_000_000,
+                        Double(decodeTime) / Double(max(decoded, 1)) / 1_000_000))
+            note("Timings are the codec only. Transport and display are still to come.")
+        }
+
+        encoder.invalidate()
+        decoder.invalidate()
+    } catch {
+        fail("Could not set up coding: \(error.localizedDescription)")
+        problems += 1
     }
 }
 

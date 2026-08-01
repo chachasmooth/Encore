@@ -23,9 +23,10 @@ The virtual display works and frames come off it. Nothing is sent anywhere yet.
 |---|---|
 | **1. Virtual display** | Working, verified on macOS 26.5 |
 | **2. Capture frames off that display** | Working, verified on macOS 26.5 |
-| 3. Encode and send them over a cable | Not started |
-| 4. Client app that decodes and renders | Not started |
-| 5. One download, pick a role, done | Not started |
+| **3. Encode and decode as HEVC** | Working, verified on macOS 26.5 |
+| 4. Send frames to the other Mac over a cable | Not started |
+| 5. Client app that displays them fullscreen | Not started |
+| 6. One download, pick a role, done | Not started |
 
 Star the repo if you want to hear when it works end to end.
 
@@ -141,9 +142,9 @@ One more limitation, this one unexplained so far: a process can create a single 
 
 - [x] Create a Retina virtual display and confirm macOS accepts it
 - [x] Capture the virtual display with ScreenCaptureKit
-- [ ] Hardware HEVC encode, tuned for latency ahead of quality
+- [x] Hardware HEVC encode and decode, tuned for latency ahead of quality
 - [ ] Wired transport over Thunderbolt Bridge
-- [ ] Client app decoding and rendering fullscreen through Metal
+- [ ] Client app rendering fullscreen through Metal
 - [ ] Pairing, so the two Macs find each other without configuration
 - [ ] Single app bundle with a host and client role picker
 - [ ] Signed, notarized releases
