@@ -85,9 +85,9 @@ public final class DisplayCapture: NSObject {
 
     /// Starts capture, calling `onFrame` for every frame with new content.
     ///
-    /// Callback-based rather than async because the only caller today is a
-    /// command-line tool driving a run loop, and mixing the two deadlocks. An
-    /// async wrapper can be added when something actually wants one.
+    /// Callback-based rather than async because callers drive a run loop and
+    /// mixing the two deadlocks. An async wrapper can be added when something
+    /// actually wants one.
     ///
     /// Call `start` and `stop` from a single thread.
     public func start(onFrame: @escaping (CVPixelBuffer) -> Void,

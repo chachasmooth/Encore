@@ -108,11 +108,15 @@ already running and processing notifications.
 
 ## Known limitations
 
-**One virtual display per process.** Creating a second display after releasing
-the first fails in the same process: `applySettings:` succeeds, a display ID is
-assigned, but the display never registers and reports 0×0. Whether two
-*simultaneous* displays work is untested. This needs resolving before Understudy
-can drive several spare MacBooks at once.
+**One virtual display at a time, machine-wide.** Not per process, as first
+recorded here. While one process holds a virtual display, another process
+creating one fails outright, and creating a second after releasing the first
+fails within the same process too. Confirmed by a leaked display in the app
+blocking `understudy-probe` entirely until the app was quit.
+
+The practical consequence is that a partially-failed host must tear its display
+down. `HostSession.start` does, because a leak holds the machine's only slot and
+leaves a phantom screen with nothing driving it.
 
 **DRM content captures as black.** ScreenCaptureKit refuses protected content.
 Unfixable.

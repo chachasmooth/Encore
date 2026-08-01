@@ -4,8 +4,9 @@ import Foundation
 
 /// The whole host pipeline in one object: virtual display, capture, encode, serve.
 ///
-/// Exists so the app and the command-line tool run identical code rather than
-/// two drifting copies of the same eighty lines.
+/// Exists so anything driving the host runs one implementation. Command-line
+/// copies of this pipeline existed once and silently fell behind every fix,
+/// which is why the app owns no pipeline logic of its own.
 public final class HostSession {
     public let pairingCode: String
     public let preset: DisplayPreset
@@ -40,7 +41,6 @@ public final class HostSession {
     public var bytesSent: Int { state.lock(); defer { state.unlock() }; return _bytesSent }
     public var droppedFrames: Int { server?.droppedFrames ?? 0 }
     public var isConnected: Bool { server?.isConnected ?? false }
-    public var isHardwareAccelerated: Bool { encoder?.isHardwareAccelerated ?? false }
 
     public init(preset: DisplayPreset,
                 position: ScreenPosition = .right,
@@ -98,10 +98,22 @@ public final class HostSession {
             server.onClientDisconnected = { [weak self] in self?.onClientDisconnected?($0) }
 
             server.start { [weak self] error in
-                if let error { return completion(error) }
-                self?.beginCapturing(completion: completion)
+                guard let self else { return completion(error) }
+                if let error {
+                    // The display already exists by this point. Leaving it behind
+                    // holds the machine's only virtual display slot, so nothing
+                    // else can create one and the user sees a phantom screen with
+                    // nothing driving it.
+                    stop()
+                    return completion(error)
+                }
+                beginCapturing { [weak self] captureError in
+                    if captureError != nil { self?.stop() }
+                    completion(captureError)
+                }
             }
         } catch {
+            stop()
             completion(error)
         }
     }

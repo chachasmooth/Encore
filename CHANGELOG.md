@@ -53,19 +53,13 @@ First working version. A spare MacBook can be used as a second display, verified
   Verified over loopback: discovery by name, paired handshake, 39 of 39 frames
   delivered and decoded, and a client with the wrong code refused.
 
-- `understudy-host` and `understudy-client`: the two halves of the product as
-  command-line tools. The host creates the display, captures, encodes and streams
-  it; the client discovers the host, pairs with the printed code, and draws the
-  frames fullscreen through `AVSampleBufferDisplayLayer`. Verified with both ends
-  running as separate processes on one Mac.
-
 - `Understudy.app`: both roles in one bundle, chosen on launch, with the pairing
   code shown on screen instead of in a terminal. `Tools/build-app.sh` produces it
   with Command Line Tools alone; Xcode turned out not to be required. Signing is
   ad-hoc, which gives the app its own identity for permissions but leaves
   Gatekeeper needing the quarantine flag cleared by hand.
-- `HostSession` and `ClientSession` hold the pipelines the app and the
-  command-line tools share, so both run one implementation rather than two.
+- `HostSession` and `ClientSession` hold the host and client pipelines, so
+  everything runs one implementation.
 
 ### Fixed
 
@@ -83,8 +77,9 @@ First working version. A spare MacBook can be used as a second display, verified
 
 ### Known limitations
 
-- Only one virtual display per process. Creating a second after releasing the
-  first fails to register.
+- Only one virtual display can exist at a time on the machine, not one per
+  process as first thought. A leaked display blocks every other process from
+  creating one.
 - DRM-protected content will capture as black frames. Not fixable.
 - Relies on private Apple API, so a macOS update can break it. Detected and
   reported as a clear error rather than a crash.

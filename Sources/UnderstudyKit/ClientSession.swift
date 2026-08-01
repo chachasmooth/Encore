@@ -5,8 +5,8 @@ import Network
 /// The client pipeline: find a host, pair, and turn received bytes back into
 /// frames ready to hand to a display layer.
 ///
-/// Deliberately stops short of drawing anything, so the app and the
-/// command-line tool can share everything except their user interface.
+/// Deliberately stops short of drawing anything, so anything that wants to
+/// display the stream shares everything except its user interface.
 public final class ClientSession {
     private let client: StreamClient
     private let state = NSLock()
@@ -14,8 +14,6 @@ public final class ClientSession {
     private var connecting = false
     private var awaitingKeyframe = false
     private var _framesReceived = 0
-    private var _lastArrival: CFAbsoluteTime?
-    private var _gaps: [Double] = []
 
     /// A decodable frame, in arrival order.
     public var onFrame: ((CMSampleBuffer) -> Void)?
@@ -29,18 +27,6 @@ public final class ClientSession {
     public init(pairingCode: String) {
         client = StreamClient(pairingCode: pairingCode)
         wire()
-    }
-
-    /// Gaps between arriving frames since the last call, in milliseconds.
-    ///
-    /// Only gaps under 100 ms are returned. Longer ones mean the host's screen
-    /// had nothing new to show, and counting those as jitter makes an idle
-    /// desktop look like a failing connection.
-    public func drainFrameGaps() -> [Double] {
-        state.lock(); defer { state.unlock() }
-        let measured = _gaps.filter { $0 < 100 }
-        _gaps.removeAll()
-        return measured
     }
 
     private func wire() {
@@ -101,9 +87,6 @@ public final class ClientSession {
                     return
                 }
                 if isKeyframe { awaitingKeyframe = false }
-                let now = CFAbsoluteTimeGetCurrent()
-                if let last = _lastArrival { _gaps.append((now - last) * 1000) }
-                _lastArrival = now
                 state.unlock()
 
                 guard let current,

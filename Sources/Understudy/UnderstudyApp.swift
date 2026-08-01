@@ -13,9 +13,9 @@ struct UnderstudyApp: App {
     }
 }
 
-/// Chosen once per launch and never changed back. macOS only allows one virtual
-/// display per process, so a host that stopped and restarted would fail to get a
-/// second one, and the simplest fix is not to offer the path.
+/// Chosen once per launch and never changed back. Only one virtual display can
+/// exist on the machine at a time, so a host that stopped and restarted would
+/// fail to get another, and the simplest fix is not to offer the path.
 enum Role {
     case undecided, host, client
 }
@@ -132,7 +132,7 @@ struct HostView: View {
                     .controlSize(.large)
             } else if stopped {
                 Text("Stopped").font(.title2)
-                Text("The second screen has been removed. macOS only allows one virtual display per app session, so starting again needs Understudy relaunched.")
+                Text("The second screen has been removed. Only one virtual display can exist at a time, so starting again needs Understudy relaunched.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -237,6 +237,7 @@ struct ClientView: View {
     @State private var session: ClientSession?
     @State private var statusText = ""
     @State private var showingVideo = false
+    @State private var window: NSWindow?
     private let layer = AVSampleBufferDisplayLayer()
 
     var body: some View {
@@ -274,7 +275,7 @@ struct ClientView: View {
         session.onConnected = {
             DispatchQueue.main.async {
                 showingVideo = true
-                setFullScreen(true)
+                setFullScreen(window, true)
             }
         }
 
@@ -282,7 +283,7 @@ struct ClientView: View {
             DispatchQueue.main.async {
                 // Leave fullscreen before anything else, or the window is left
                 // as a black fullscreen shell with no way back to the code entry.
-                setFullScreen(false)
+                setFullScreen(window, false)
                 showingVideo = false
                 statusText = "The other Mac stopped sharing."
                 layer.flush()
@@ -307,14 +308,30 @@ struct ClientView: View {
     }
 }
 
-/// Toggling fullscreen is a no-op if the window is already in the wanted state,
-/// since AppKit only offers a toggle and calling it blindly does the opposite of
-/// what was asked half the time.
-private func setFullScreen(_ wanted: Bool) {
-    guard let window = NSApp.windows.first(where: { $0.isVisible }) else { return }
-    if window.styleMask.contains(.fullScreen) != wanted {
-        window.toggleFullScreen(nil)
+/// Hands back the real NSWindow behind a SwiftUI view.
+///
+/// Guessing at it with `NSApp.windows.first(where: \.isVisible)` picked up
+/// whichever window AppKit happened to list first, which is why fullscreen
+/// silently did nothing.
+struct WindowAccessor: NSViewRepresentable {
+    let onWindow: (NSWindow) -> Void
+
+    func makeNSView(context: Context) -> NSView {
+        let view = NSView()
+        DispatchQueue.main.async { if let window = view.window { onWindow(window) } }
+        return view
     }
+
+    func updateNSView(_ view: NSView, context: Context) {
+        DispatchQueue.main.async { if let window = view.window { onWindow(window) } }
+    }
+}
+
+/// AppKit only offers a toggle, so calling it blindly does the opposite of what
+/// was asked half the time.
+private func setFullScreen(_ window: NSWindow?, _ wanted: Bool) {
+    guard let window, window.styleMask.contains(.fullScreen) != wanted else { return }
+    window.toggleFullScreen(nil)
 }
 
 /// Present as soon as the frame decodes rather than scheduling it against a
