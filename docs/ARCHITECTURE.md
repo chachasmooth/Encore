@@ -82,9 +82,13 @@ Understudy uses all three because no single one is trustworthy.
 | `NSScreen.backingScaleFactor` | Scale factor, public and documented | `NSScreen.screens` is **cached** until an AppKit run loop processes a screen-change notification |
 
 `DisplayInfoReader` enumerates with CoreGraphics and resolves scale from
-NSScreen, falling back to the display mode. `DisplayInfo.scaleFactor` is
-optional because there are moments when no API can answer honestly — reporting
-a guess would silently look like a non-Retina display.
+NSScreen. `CGDisplayCopyDisplayMode` was tried as a fallback for when NSScreen
+is stale and has since been removed: in that exact situation it returns nil too,
+so it never rescued a single case. Don't re-add it without new evidence.
+
+`DisplayInfo.scaleFactor` is optional because there are moments when neither
+remaining source can answer honestly. Reporting a guess would silently look like
+a non-Retina display, which is the bug that cost the most time to find.
 
 ### The NSScreen cache trap
 

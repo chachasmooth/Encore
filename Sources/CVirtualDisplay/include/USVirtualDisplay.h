@@ -64,9 +64,6 @@ typedef NS_ERROR_ENUM(USVirtualDisplayErrorDomain, USVirtualDisplayError) {
 @property (readonly) uint32_t pointWidth;
 @property (readonly) uint32_t pointHeight;
 
-/// Whether the display is still registered with the window server.
-@property (readonly, getter=isValid) BOOL valid;
-
 /// Called on the main queue if macOS tears the display down on its own, for
 /// example during a graphics driver reset.
 @property (nullable, copy) void (^terminationHandler)(void);
@@ -75,14 +72,5 @@ typedef NS_ERROR_ENUM(USVirtualDisplayErrorDomain, USVirtualDisplayError) {
 - (void)invalidate;
 
 @end
-
-/// Reads a display's true backing-store size straight from CoreGraphics.
-///
-/// Exists because calling CGDisplayCopyDisplayMode through Swift's importer
-/// returns nil for freshly created virtual displays, while the identical call
-/// from Objective-C succeeds. Returns NO if the mode could not be read.
-BOOL USReadDisplayPixelSize(CGDirectDisplayID displayID,
-                            uint32_t *_Nullable outPixelWidth,
-                            uint32_t *_Nullable outPixelHeight);
 
 NS_ASSUME_NONNULL_END

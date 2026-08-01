@@ -136,14 +136,8 @@ note("The display is live for \(Int(holdSeconds))s.")
 note("Open System Settings > Displays, or drag a window off the right edge, to see it.")
 note("Press Ctrl-C to stop early.")
 
-let interrupt = DispatchSource.makeSignalSource(signal: SIGINT, queue: .main)
-interrupt.setEventHandler {
-    print("\n  Interrupted.")
-    display.invalidate()
-    exit(problems == 0 ? 0 : 1)
-}
-interrupt.resume()
-signal(SIGINT, SIG_IGN)
+// Ctrl-C needs no handler: killing the process releases the CGVirtualDisplay,
+// and the window server reclaims the display on its own.
 pump(holdSeconds)
 
 heading("Tearing down")

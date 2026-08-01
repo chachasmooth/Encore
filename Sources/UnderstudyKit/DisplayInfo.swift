@@ -4,21 +4,19 @@ import Foundation
 
 /// A snapshot of one screen as macOS currently reports it.
 ///
-/// Reading display geometry on macOS needs three different APIs, because each
-/// one is unreliable in a different way:
+/// Geometry comes from two APIs, because neither answers everything:
 ///
 /// - `CGGetActiveDisplayList` / `CGDisplayPixelsWide` are always current, but
 ///   only report logical point sizes.
-/// - `CGDisplayCopyDisplayMode` exposes the true pixel size, but returns nil for
-///   freshly created virtual displays in some processes (from Objective-C as
-///   well as Swift).
-/// - `NSScreen.backingScaleFactor` is correct and public, but `NSScreen.screens`
-///   is cached until an AppKit run loop processes a screen-change notification,
-///   so it can miss a display that was just added.
+/// - `NSScreen.backingScaleFactor` gives the backing scale, but
+///   `NSScreen.screens` is cached until an AppKit run loop processes a
+///   screen-change notification, so it can miss a display that was just added.
 ///
-/// This type therefore enumerates with CoreGraphics and resolves scale from
-/// NSScreen, falling back to the display mode. `scaleFactor` is optional because
-/// there are moments when no API can answer honestly.
+/// `CGDisplayCopyDisplayMode` looks like an obvious third source for true pixel
+/// size and was tried as a fallback. It returns nil for freshly created virtual
+/// displays, including in the exact case where NSScreen is stale, so it rescued
+/// nothing and was removed. Don't re-add it. `scaleFactor` is optional because
+/// there are moments when neither remaining source can answer honestly.
 public struct DisplayInfo: Sendable, Equatable {
     public let id: CGDirectDisplayID
     /// Logical size in points, which is what window layout uses.
@@ -62,7 +60,7 @@ public enum DisplayInfoReader {
             id: id,
             pointWidth: pointWidth,
             pointHeight: Int(CGDisplayPixelsHigh(id)),
-            scaleFactor: scaleFactor(for: id, pointWidth: pointWidth),
+            scaleFactor: scaleFactor(for: id),
             isMain: CGDisplayIsMain(id) != 0,
             isBuiltIn: CGDisplayIsBuiltin(id) != 0,
             origin: CGDisplayBounds(id).origin)
@@ -72,17 +70,10 @@ public enum DisplayInfoReader {
         activeDisplayIDs().contains(id)
     }
 
-    /// Resolves backing scale, preferring the public API and falling back to the
-    /// display mode. Returns nil when neither source can answer.
-    private static func scaleFactor(for id: CGDirectDisplayID, pointWidth: Int) -> Double? {
-        if let screen = NSScreen.screens.first(where: { $0.displayID == id }) {
-            return Double(screen.backingScaleFactor)
-        }
-        var pixelWidth: UInt32 = 0, pixelHeight: UInt32 = 0
-        if USReadDisplayPixelSize(id, &pixelWidth, &pixelHeight), pointWidth > 0 {
-            return Double(pixelWidth) / Double(pointWidth)
-        }
-        return nil
+    /// Backing scale, or nil when AppKit's cached screen list does not yet
+    /// include this display.
+    private static func scaleFactor(for id: CGDirectDisplayID) -> Double? {
+        NSScreen.screens.first { $0.displayID == id }.map { Double($0.backingScaleFactor) }
     }
 }
 

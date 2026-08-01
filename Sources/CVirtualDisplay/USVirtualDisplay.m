@@ -226,10 +226,6 @@ static NSError *USMakeError(USVirtualDisplayError code, NSString *description) {
     return self;
 }
 
-- (BOOL)isValid {
-    return _display != nil && !_invalidated;
-}
-
 - (void)invalidate {
     if (_invalidated) return;
     _invalidated = YES;
@@ -243,14 +239,3 @@ static NSError *USMakeError(USVirtualDisplayError code, NSString *description) {
 }
 
 @end
-
-BOOL USReadDisplayPixelSize(CGDirectDisplayID displayID,
-                            uint32_t *outPixelWidth,
-                            uint32_t *outPixelHeight) {
-    CGDisplayModeRef mode = CGDisplayCopyDisplayMode(displayID);
-    if (!mode) return NO;
-    if (outPixelWidth) *outPixelWidth = (uint32_t)CGDisplayModeGetPixelWidth(mode);
-    if (outPixelHeight) *outPixelHeight = (uint32_t)CGDisplayModeGetPixelHeight(mode);
-    CGDisplayModeRelease(mode);
-    return YES;
-}

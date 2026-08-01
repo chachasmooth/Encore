@@ -55,13 +55,8 @@ public final class VirtualDisplay {
     /// Creates a virtual monitor matching `preset`.
     /// - Throws: `USVirtualDisplayError` if macOS refuses or the private API has changed shape.
     public init(preset: DisplayPreset, name: String = "Understudy Display") throws {
-        guard USVirtualDisplay.isSupported else {
-            throw NSError(
-                domain: USVirtualDisplayErrorDomain,
-                code: USVirtualDisplayError.unsupportedOS.rawValue,
-                userInfo: [NSLocalizedDescriptionKey:
-                    "This version of macOS does not provide the virtual display API Understudy relies on."])
-        }
+        // No isSupported check here on purpose: the initialiser below already
+        // verifies the private classes exist and throws unsupportedOS itself.
         self.backing = try USVirtualDisplay(
             name: name,
             widthPoints: preset.pointWidth,
