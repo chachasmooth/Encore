@@ -584,6 +584,17 @@ if outboundMessages.isEmpty {
 
     var serverStarted = false
     var serverError: Error?
+    var reentrantCallSurvived = false
+
+    // onClientConnected fires on the server's own queue, and a handler asking
+    // "am I connected?" there is the obvious thing to write. It used to trap
+    // instantly: dispatch_sync on a queue already owned by the caller. Shipped
+    // as a crash, so it gets a check.
+    server.onClientConnected = {
+        _ = server.isConnected
+        lock.lock(); reentrantCallSurvived = true; lock.unlock()
+    }
+
     server.start { error in
         lock.lock(); serverStarted = true; serverError = error; lock.unlock()
     }
@@ -655,6 +666,14 @@ if outboundMessages.isEmpty {
             problems += 1
         } else {
             pass("Client paired and connected over TLS")
+
+            lock.lock(); let survived = reentrantCallSurvived; lock.unlock()
+            if survived {
+                pass("Reading server state from the connect callback did not deadlock")
+            } else {
+                fail("The connect callback never completed, which previously meant a deadlock")
+                problems += 1
+            }
 
             lock.lock(); let toSend = outboundMessages; lock.unlock()
             // Paced at roughly the real frame interval. Sending in a tight loop

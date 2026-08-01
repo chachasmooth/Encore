@@ -64,6 +64,19 @@ public final class StreamServer {
     private let serviceName: String
     private let queue = DispatchQueue(label: "com.understudy.server")
 
+    /// Marks `queue` so code can tell whether it is already running on it.
+    ///
+    /// Callbacks like `onClientConnected` fire on `queue`, and handlers
+    /// reasonably want to ask whether a client is connected or to stop the
+    /// server. Both used `queue.sync`, which traps instantly when called from
+    /// the queue itself. Rather than making every caller remember that, the two
+    /// accessors below run inline when already on the queue.
+    private static let queueKey = DispatchSpecificKey<Void>()
+
+    private func onQueue<T>(_ work: () -> T) -> T {
+        DispatchQueue.getSpecific(key: Self.queueKey) != nil ? work() : queue.sync(execute: work)
+    }
+
     private var listener: NWListener?
     private var connection: NWConnection?
     private var inFlight = 0
@@ -82,6 +95,7 @@ public final class StreamServer {
     public init(pairingCode: String, serviceName: String) {
         self.pairingCode = pairingCode
         self.serviceName = serviceName
+        queue.setSpecific(key: Self.queueKey, value: ())
     }
 
     public func start(completion: @escaping (Error?) -> Void) {
@@ -137,7 +151,7 @@ public final class StreamServer {
     }
 
     public var isConnected: Bool {
-        queue.sync { connection?.state == .ready }
+        onQueue { connection?.state == .ready }
     }
 
     /// Sends a message, dropping it if the link is already behind.
@@ -165,7 +179,7 @@ public final class StreamServer {
     }
 
     public func stop() {
-        queue.sync {
+        onQueue {
             connection?.cancel()
             connection = nil
             listener?.cancel()
@@ -180,6 +194,14 @@ public final class StreamServer {
 public final class StreamClient {
     private let pairingCode: String
     private let queue = DispatchQueue(label: "com.understudy.client")
+
+    // Same reentrancy trap as the server: drainBuffer calls disconnect() on a
+    // malformed message, and drainBuffer already runs on this queue.
+    private static let queueKey = DispatchSpecificKey<Void>()
+
+    private func onQueue<T>(_ work: () -> T) -> T {
+        DispatchQueue.getSpecific(key: Self.queueKey) != nil ? work() : queue.sync(execute: work)
+    }
 
     private var browser: NWBrowser?
     private var connection: NWConnection?
@@ -199,6 +221,7 @@ public final class StreamClient {
 
     public init(pairingCode: String) {
         self.pairingCode = pairingCode
+        queue.setSpecific(key: Self.queueKey, value: ())
     }
 
     /// Starts looking for hosts on the local network.
@@ -278,7 +301,7 @@ public final class StreamClient {
     }
 
     public func disconnect() {
-        queue.sync {
+        onQueue {
             connection?.cancel()
             connection = nil
             browser?.cancel()
