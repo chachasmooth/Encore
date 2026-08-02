@@ -164,7 +164,7 @@ cd Understudy && ./Tools/build-app.sh
 
 That produces `build/Understudy.app`, already signed for local use, plus a zip. Xcode is not required, Command Line Tools are enough.
 
-The app icon is built from `Tools/icon.png` during the build, so replacing that one file changes it. `Tools/make-icon.swift` draws the current artwork and is not needed to build anything.
+The app icon is built from `Tools/icon.png` during the build, so replacing that one file changes it. `Tools/icon.svg` is the artwork it was rendered from.
 
 
 ### Trying it
