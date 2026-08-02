@@ -464,9 +464,19 @@ struct VideoLayerView: NSViewRepresentable {
     func makeNSView(context: Context) -> NSView {
         let view = NSView()
         view.wantsLayer = true
-        view.layer = CALayer()
+        // Not `view.layer = CALayer()`. Replacing the layer of a view that is
+        // already layer-backed leaves the sublayer at zero size forever, and a
+        // zero-sized AVSampleBufferDisplayLayer still accepts every frame,
+        // decodes it, and reports itself as rendering. That is what made a
+        // working stream look like a dead one for two days.
         view.layer?.backgroundColor = NSColor.black.cgColor
+        layer.frame = view.bounds
+        // The layer follows its superlayer without waiting for SwiftUI to
+        // decide the representable needs updating, which it does not do on an
+        // AppKit-driven resize such as entering fullscreen.
+        layer.autoresizingMask = [.layerWidthSizable, .layerHeightSizable]
         layer.videoGravity = .resizeAspect
+        layer.backgroundColor = NSColor.black.cgColor
         view.layer?.addSublayer(layer)
         return view
     }
