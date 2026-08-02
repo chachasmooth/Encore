@@ -5,6 +5,22 @@ import UnderstudyKit
 
 @main
 struct UnderstudyApp: App {
+    init() {
+        // The spare fills its screen with a picture and shows no controls at
+        // all, so the key everyone reaches for has to work. The command-line
+        // client bound the same one for the same reason. Guarded on the window
+        // actually being fullscreen, so Escape stays normal everywhere else.
+        NSEvent.addLocalMonitorForEvents(matching: .keyDown) { event in
+            let escape: UInt16 = 53
+            guard event.keyCode == escape,
+                  let window = NSApp.keyWindow,
+                  window.styleMask.contains(.fullScreen)
+            else { return event }
+            window.toggleFullScreen(nil)
+            return nil
+        }
+    }
+
     var body: some Scene {
         WindowGroup("Understudy") {
             RootView()

@@ -8,13 +8,21 @@ cost real debugging time, so nobody has to rediscover them.
 ```
 Sources/
   CVirtualDisplay/     Objective-C. The only code that touches private Apple API.
-  UnderstudyKit/       Swift. Display management and shared types.
+  UnderstudyKit/       Swift. Both pipelines, transport, codecs, display management.
+  Understudy/          SwiftUI app. Role picker and two screens. Owns no pipeline.
   understudy-probe/    Diagnostic CLI exercising every stage on one machine.
 Tools/
+  build-app.sh         Builds and ad-hoc signs Understudy.app, no Xcode needed.
+  make-icon.swift      Draws Tools/icon.png, the source for the app icon.
   dump-private-api.m   Prints the live signatures of Apple's private classes.
 Tests/
-  UnderstudyKitTests/  Pure-logic tests. No display creation — CI is headless.
+  UnderstudyKitTests/  Pure-logic tests. No display creation, CI is headless.
 ```
+
+`HostSession` and `ClientSession` hold the entire pipeline for each role, and
+the app owns none of it. Command-line copies of both existed once and silently
+fell behind every fix, so the app was tested against code the scripts no longer
+shared. Everything that drives a pipeline now drives the same one.
 
 The private-API surface is deliberately tiny and sits behind
 `USVirtualDisplay`, which exposes a normal Objective-C class with normal errors.
@@ -77,7 +85,7 @@ Understudy uses all three because no single one is trustworthy.
 
 | API | Gives | Fails when |
 |---|---|---|
-| `CGGetActiveDisplayList`, `CGDisplayPixelsWide` | Point size, always current | Never — but only reports points |
+| `CGGetActiveDisplayList`, `CGDisplayPixelsWide` | Point size, always current | Never, but it only reports points |
 | `CGDisplayCopyDisplayMode` | True pixel size | Returns **nil** for freshly created virtual displays in some processes, from Objective-C as well as Swift |
 | `NSScreen.backingScaleFactor` | Scale factor, public and documented | `NSScreen.screens` is **cached** until an AppKit run loop processes a screen-change notification |
 
@@ -97,7 +105,7 @@ AppKit run loop processes `NSApplicationDidChangeScreenParametersNotification`.
 In a command-line process there is no such loop, so **the first read wins for
 the lifetime of the process**.
 
-Anything that initialises AppKit counts as a read — including
+Anything that initialises AppKit counts as a read, including
 `NSApplication.shared` and `finishLaunching()`. `understudy-probe` therefore
 deliberately avoids both, and lists pre-existing displays using CoreGraphics
 only. Reading `NSScreen` before creating the virtual display makes the display
@@ -203,12 +211,64 @@ a self-contained frame arrives. `FrameEncoder.encode` therefore takes a
 `TCP_NODELAY` is set. Nagle's algorithm holds small writes back to batch them,
 which is precisely wrong here: a frame delayed to save a packet is a frame late.
 
-## Planned pipeline
+## Rendering
 
-Milestone 5, not yet built:
+Decoded frames go to an `AVSampleBufferDisplayLayer`, not a `CAMetalLayer`.
+It decodes internally, which means the client hands it encoded sample buffers
+and never touches VideoToolbox for display. Each frame carries
+`kCMSampleAttachmentKey_DisplayImmediately`, so the layer presents on arrival
+rather than scheduling against a timebase. For a live screen, late is worse
+than uneven.
 
-1. **Render** — decoded frames into a `CAMetalLayer`, presented fullscreen.
+**A zero-sized layer looks exactly like a broken network.** This cost two days.
+`AVSampleBufferDisplayLayer` with `bounds` of zero accepts every frame, decodes
+it, and reports `.rendering`, while drawing nothing at all. The client honestly
+displayed `frames 936, last 0.4s ago, rendering` over a black screen, and every
+number was true. Suspicion went to dropped keyframes, to the HEVC reference
+chain, to the send queue, and to SwiftUI recreating the layer. All wrong.
 
-The latency target is **under 30 ms glass-to-glass**. Past roughly 60 ms it
-stops feeling like a monitor and starts feeling like screen sharing, which is
-the difference between a tool people use daily and one they try once.
+Two mistakes produced it, both in the SwiftUI bridge and neither present in the
+command-line client that worked:
+
+1. `view.wantsLayer = true` followed by `view.layer = CALayer()`. Apple
+   documents the opposite order. Assigning a layer to a view that is already
+   layer-backed is unsupported.
+2. Setting the video layer's frame only inside `updateNSView`. SwiftUI does not
+   run that pass for an AppKit-driven resize, which is what entering fullscreen
+   is, and a representable with unchanged stored properties may not be updated
+   at all.
+
+The fix is what the script did: add the sublayer to AppKit's own layer, give it
+an explicit frame, and set
+`autoresizingMask = [.layerWidthSizable, .layerHeightSizable]` so it follows its
+superlayer without waiting for SwiftUI to notice. Verified tracking resizes from
+900×418 to 1440×868 to 700×368.
+
+The general lesson is worth more than the specific bug. Every health signal in
+that failure was real and reported truthfully by the component that owned it.
+No component was lying; none of them could see the rectangle. When the numbers
+all look right and the output is wrong, stop reading numbers and capture the
+pixels. Three throwaway harnesses settled in ten minutes what two days of
+theorising did not.
+
+The client now decodes its first keyframe a second time, on purpose, and writes
+it to `~/Library/Logs/Understudy/client-keyframe.png`. It also counts keyframes
+separately from frames, because a stream carrying deltas and no keyframes cannot
+be decoded at all and looks healthy by frame count alone.
+
+The latency target is **under 30 ms glass-to-glass**, still unmeasured. Past
+roughly 60 ms it stops feeling like a monitor and starts feeling like screen
+sharing, which is the difference between a tool people use daily and one they
+try once.
+
+## The second screen has to look like a desktop
+
+macOS paints a wallpaper on physical monitors and leaves a virtual display pure
+black except for the menu bar. Streamed to another Mac that reads as a failed
+connection rather than an empty desktop, which was the single most misleading
+thing about the product. `VirtualDisplay.adoptMainScreenWallpaper` copies the
+main screen's desktop picture across on start.
+
+The probe deliberately does not, because a black frame with a bright menu bar is
+a better test of whether real pixels are arriving than a frame that is bright
+everywhere.
