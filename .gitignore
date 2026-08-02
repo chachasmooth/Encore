@@ -44,3 +44,6 @@ tmp/
 
 # Working notes, kept out of the public repo
 SESSION.md
+
+# macOS folder metadata
+.DS_Store

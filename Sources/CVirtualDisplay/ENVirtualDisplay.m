@@ -1,7 +1,7 @@
-#import "USVirtualDisplay.h"
+#import "ENVirtualDisplay.h"
 #import <objc/runtime.h>
 
-NSErrorDomain const USVirtualDisplayErrorDomain = @"com.understudy.virtualdisplay";
+NSErrorDomain const ENVirtualDisplayErrorDomain = @"com.encore.virtualdisplay";
 
 #pragma mark - Private CoreGraphics API
 
@@ -52,15 +52,15 @@ NSErrorDomain const USVirtualDisplayErrorDomain = @"com.understudy.virtualdispla
 static const double kAssumedPointsPerInch = 110.0;
 static const double kMillimetresPerInch = 25.4;
 
-static NSError *USMakeError(USVirtualDisplayError code, NSString *description) {
-    return [NSError errorWithDomain:USVirtualDisplayErrorDomain
+static NSError *ENMakeError(ENVirtualDisplayError code, NSString *description) {
+    return [NSError errorWithDomain:ENVirtualDisplayErrorDomain
                                code:code
                            userInfo:@{NSLocalizedDescriptionKey: description}];
 }
 
-#pragma mark - USVirtualDisplay
+#pragma mark - ENVirtualDisplay
 
-@implementation USVirtualDisplay {
+@implementation ENVirtualDisplay {
     id _display;                  // CGVirtualDisplay
     dispatch_queue_t _queue;
     BOOL _invalidated;
@@ -87,12 +87,12 @@ static NSError *USMakeError(USVirtualDisplayError code, NSString *description) {
     if (!self) return nil;
 
     if (widthPoints == 0 || heightPoints == 0 || refreshRate <= 0) {
-        if (error) *error = USMakeError(USVirtualDisplayErrorSettingsRejected,
+        if (error) *error = ENMakeError(ENVirtualDisplayErrorSettingsRejected,
                                         @"Resolution and refresh rate must be greater than zero.");
         return nil;
     }
     if (scaleFactor != 1 && scaleFactor != 2) {
-        if (error) *error = USMakeError(USVirtualDisplayErrorSettingsRejected,
+        if (error) *error = ENMakeError(ENVirtualDisplayErrorSettingsRejected,
                                         @"Scale factor must be 1 or 2.");
         return nil;
     }
@@ -103,9 +103,9 @@ static NSError *USMakeError(USVirtualDisplayError code, NSString *description) {
     Class settingsClass = objc_getClass("CGVirtualDisplaySettings");
 
     if (!displayClass || !descriptorClass || !modeClass || !settingsClass) {
-        if (error) *error = USMakeError(USVirtualDisplayErrorUnsupportedOS,
+        if (error) *error = ENMakeError(ENVirtualDisplayErrorUnsupportedOS,
                                         @"This version of macOS does not provide the virtual display API "
-                                        @"Understudy relies on.");
+                                        @"Encore relies on.");
         return nil;
     }
 
@@ -114,12 +114,12 @@ static NSError *USMakeError(USVirtualDisplayError code, NSString *description) {
     _pixelWidth = widthPoints * scaleFactor;
     _pixelHeight = heightPoints * scaleFactor;
 
-    _queue = dispatch_queue_create("com.understudy.virtualdisplay", DISPATCH_QUEUE_SERIAL);
+    _queue = dispatch_queue_create("com.encore.virtualdisplay", DISPATCH_QUEUE_SERIAL);
 
     // --- Descriptor: the display's identity and physical characteristics. ---
     CGVirtualDisplayDescriptor *descriptor = [[descriptorClass alloc] init];
     if (!descriptor) {
-        if (error) *error = USMakeError(USVirtualDisplayErrorAllocationFailed,
+        if (error) *error = ENMakeError(ENVirtualDisplayErrorAllocationFailed,
                                         @"Could not allocate a virtual display descriptor.");
         return nil;
     }
@@ -131,7 +131,7 @@ static NSError *USMakeError(USVirtualDisplayError code, NSString *description) {
     };
     for (size_t i = 0; i < sizeof(requiredDescriptorSelectors) / sizeof(SEL); i++) {
         if (![descriptor respondsToSelector:requiredDescriptorSelectors[i]]) {
-            if (error) *error = USMakeError(USVirtualDisplayErrorIncompatibleAPI,
+            if (error) *error = ENMakeError(ENVirtualDisplayErrorIncompatibleAPI,
                                             [NSString stringWithFormat:
                                              @"macOS changed the virtual display API: descriptor no longer "
                                              @"responds to -%s.", sel_getName(requiredDescriptorSelectors[i])]);
@@ -166,7 +166,7 @@ static NSError *USMakeError(USVirtualDisplayError code, NSString *description) {
     // --- Create the display. ---
     _display = [[displayClass alloc] initWithDescriptor:descriptor];
     if (!_display) {
-        if (error) *error = USMakeError(USVirtualDisplayErrorAllocationFailed,
+        if (error) *error = ENMakeError(ENVirtualDisplayErrorAllocationFailed,
                                         @"macOS refused to create the virtual display.");
         return nil;
     }
@@ -177,7 +177,7 @@ static NSError *USMakeError(USVirtualDisplayError code, NSString *description) {
     CGVirtualDisplaySettings *settings = [[settingsClass alloc] init];
     if (!settings || ![settings respondsToSelector:@selector(setModes:)]
                   || ![settings respondsToSelector:@selector(setHiDPI:)]) {
-        if (error) *error = USMakeError(USVirtualDisplayErrorIncompatibleAPI,
+        if (error) *error = ENMakeError(ENVirtualDisplayErrorIncompatibleAPI,
                                         @"macOS changed the virtual display settings API.");
         return nil;
     }
@@ -190,7 +190,7 @@ static NSError *USMakeError(USVirtualDisplayError code, NSString *description) {
                                                           height:modeHeight
                                                      refreshRate:refreshRate];
     if (!mode) {
-        if (error) *error = USMakeError(USVirtualDisplayErrorAllocationFailed,
+        if (error) *error = ENMakeError(ENVirtualDisplayErrorAllocationFailed,
                                         @"Could not allocate a virtual display mode.");
         return nil;
     }
@@ -200,7 +200,7 @@ static NSError *USMakeError(USVirtualDisplayError code, NSString *description) {
     settings.rotation = 0;
 
     if (![_display applySettings:settings]) {
-        if (error) *error = USMakeError(USVirtualDisplayErrorSettingsRejected,
+        if (error) *error = ENMakeError(ENVirtualDisplayErrorSettingsRejected,
                                         [NSString stringWithFormat:
                                          @"macOS rejected a %ux%u @ %.0fHz display.",
                                          modeWidth, modeHeight, refreshRate]);
@@ -216,7 +216,7 @@ static NSError *USMakeError(USVirtualDisplayError code, NSString *description) {
         [NSThread sleepForTimeInterval:0.02];
     }
     if (resolvedID == 0) {
-        if (error) *error = USMakeError(USVirtualDisplayErrorNoDisplayID,
+        if (error) *error = ENMakeError(ENVirtualDisplayErrorNoDisplayID,
                                         @"The virtual display was created but macOS never assigned it an ID.");
         _display = nil;
         return nil;

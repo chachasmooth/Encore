@@ -45,7 +45,7 @@ public final class HostSession {
 
     public init(preset: DisplayPreset,
                 position: ScreenPosition = .right,
-                serviceName: String = Host.current().localizedName ?? "Understudy Host",
+                serviceName: String = Host.current().localizedName ?? "Encore Host",
                 pairingCode: String = PairingCode.random()) {
         self.preset = preset
         self.position = position
@@ -60,7 +60,7 @@ public final class HostSession {
         }
 
         do {
-            let display = try VirtualDisplay(preset: preset, name: "Understudy")
+            let display = try VirtualDisplay(preset: preset, name: "Encore")
             // Placed deliberately. Otherwise macOS puts it on the left, where it
             // collides with wherever Universal Control has the other Mac.
             display.place(position)
@@ -157,7 +157,7 @@ public final class HostSession {
     /// decoder was reset and is waiting for a keyframe that a still screen will
     /// never produce.
     private func startHeartbeat() {
-        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "com.understudy.heartbeat"))
+        let timer = DispatchSource.makeTimerSource(queue: DispatchQueue(label: "com.encore.heartbeat"))
         timer.schedule(deadline: .now() + 1, repeating: 1)
         timer.setEventHandler { [weak self] in
             guard let self, server?.isConnected == true else { return }

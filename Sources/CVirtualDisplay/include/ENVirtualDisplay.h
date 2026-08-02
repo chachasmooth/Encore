@@ -3,21 +3,21 @@
 
 NS_ASSUME_NONNULL_BEGIN
 
-extern NSErrorDomain const USVirtualDisplayErrorDomain;
+extern NSErrorDomain const ENVirtualDisplayErrorDomain;
 
-typedef NS_ERROR_ENUM(USVirtualDisplayErrorDomain, USVirtualDisplayError) {
+typedef NS_ERROR_ENUM(ENVirtualDisplayErrorDomain, ENVirtualDisplayError) {
     /// The private CoreGraphics classes were not found at runtime. Expected if
     /// Apple removes or renames them in a future macOS release.
-    USVirtualDisplayErrorUnsupportedOS = 1,
-    /// The classes were found but did not respond to the selectors Understudy needs,
+    ENVirtualDisplayErrorUnsupportedOS = 1,
+    /// The classes were found but did not respond to the selectors Encore needs,
     /// meaning Apple changed the API shape.
-    USVirtualDisplayErrorIncompatibleAPI = 2,
+    ENVirtualDisplayErrorIncompatibleAPI = 2,
     /// Object allocation failed.
-    USVirtualDisplayErrorAllocationFailed = 3,
+    ENVirtualDisplayErrorAllocationFailed = 3,
     /// applySettings: returned NO, so macOS rejected the requested mode.
-    USVirtualDisplayErrorSettingsRejected = 4,
+    ENVirtualDisplayErrorSettingsRejected = 4,
     /// The display was created but never got a valid display ID from WindowServer.
-    USVirtualDisplayErrorNoDisplayID = 5,
+    ENVirtualDisplayErrorNoDisplayID = 5,
 };
 
 /// A virtual monitor that macOS treats as real hardware.
@@ -29,7 +29,7 @@ typedef NS_ERROR_ENUM(USVirtualDisplayErrorDomain, USVirtualDisplayError) {
 /// This is built on private, undocumented Apple API. There is no public macOS
 /// equivalent. Every private call is isolated inside this class so that a break
 /// in a future macOS release surfaces as a clean error rather than a crash.
-@interface USVirtualDisplay : NSObject
+@interface ENVirtualDisplay : NSObject
 
 /// Whether the underlying private API is present on this system. Check before
 /// attempting to create a display so failure can be reported gracefully.

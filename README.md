@@ -1,12 +1,14 @@
 <div align="center">
 
-<img src="Tools/icon.png" width="140" alt="Understudy">
+<img src="Tools/icon.png" width="140" alt="Encore">
 
-# Understudy
+# Encore
 
-**Turn a spare MacBook into a second display for your Mac.**
+**Your old MacBook still has a job.**
 
-[![CI](https://github.com/chachasmooth/Understudy/actions/workflows/ci.yml/badge.svg)](https://github.com/chachasmooth/Understudy/actions/workflows/ci.yml)
+Turn it into a second display for your new one.
+
+[![CI](https://github.com/chachasmooth/Encore/actions/workflows/ci.yml/badge.svg)](https://github.com/chachasmooth/Encore/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey.svg)](#requirements)
 [![Status](https://img.shields.io/badge/status-working-brightgreen.svg)](#status)
@@ -34,13 +36,13 @@ Still rough in places. It has been tested by one person on two machines, so expe
 
 ## What it does
 
-Open Understudy on both Macs, pair them with a six digit code, and the spare one becomes a second display for the main one. Drag windows onto it, park your reference docs there, extend your desktop the way you would with any monitor.
+Open Encore on both Macs, pair them with a six digit code, and the spare one becomes a second display for the main one. Drag windows onto it, park your reference docs there, extend your desktop the way you would with any monitor.
 
 macOS treats it as attached hardware. The cursor crosses onto it. Windows remember where they were. It appears in System Settings alongside anything else you have plugged in.
 
 ## What it won't do
 
-Apple provides no supported way to turn one Mac into a display for another. Sidecar covers iPads and stops there. Understudy fills that gap with private system API, which carries real costs. See [Caveats](#caveats).
+Apple provides no supported way to turn one Mac into a display for another. Sidecar covers iPads and stops there. Encore fills that gap with private system API, which carries real costs. See [Caveats](#caveats).
 
 Protected video will not show up. Netflix, Apple TV+ and anything else using DRM will render as a black rectangle. macOS blocks screen capture of protected content at a level no application can reach around.
 
@@ -54,11 +56,11 @@ It will also never appear on the Mac App Store. Private API disqualifies it.
 
 No cable. Every M-series MacBook has hardware HEVC encoding and decoding, which is why the requirement is drawn there. Intel Macs are untested.
 
-A compressed stream needs a few Mb/s, which any modern Wi-Fi handles comfortably, so bandwidth is not the constraint. Consistency is. Wi-Fi's problem is not its average latency but its occasional spikes, and a display that is reliably 30 ms behind feels far better than one that is usually 20 ms and jumps to 120 ms. Understudy drops stale frames rather than queueing them for exactly this reason.
+A compressed stream needs a few Mb/s, which any modern Wi-Fi handles comfortably, so bandwidth is not the constraint. Consistency is. Wi-Fi's problem is not its average latency but its occasional spikes, and a display that is reliably 30 ms behind feels far better than one that is usually 20 ms and jumps to 120 ms. Encore drops stale frames rather than queueing them for exactly this reason.
 
 A Thunderbolt cable or a pair of USB-C Ethernet adapters will both be faster and steadier, and they work with no extra setup because the transport is ordinary TCP over whichever interface exists. Neither is required.
 
-Understudy pairs with a six digit code shown on the host. That code becomes the TLS pre-shared key for the connection, so a machine that does not have it cannot complete the handshake and never receives a frame.
+Encore pairs with a six digit code shown on the host. That code becomes the TLS pre-shared key for the connection, so a machine that does not have it cannot complete the handshake and never receives a frame.
 
 ### Supported panels
 
@@ -100,29 +102,29 @@ Six models, five resolutions, and Apple has not changed any of them between the 
                     paired, TLS, stale frames dropped
 ```
 
-Step one carries all the risk. macOS exposes no public way to register a virtual monitor, so Understudy calls four undocumented CoreGraphics classes. Every one of those calls lives in [a single file](Sources/CVirtualDisplay/USVirtualDisplay.m). When Apple eventually changes something, one small well-marked place breaks instead of the whole application.
+Step one carries all the risk. macOS exposes no public way to register a virtual monitor, so Encore calls four undocumented CoreGraphics classes. Every one of those calls lives in [a single file](Sources/CVirtualDisplay/ENVirtualDisplay.m). When Apple eventually changes something, one small well-marked place breaks instead of the whole application.
 
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) covers the details, including three display APIs that each fail in a different way and cost a lot of debugging time.
 
 ## Installing
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/chachasmooth/Understudy/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/chachasmooth/Encore/main/install.sh | bash
 ```
 
 That downloads the latest release, puts it in `/Applications`, and clears the macOS quarantine flag. Then open it from Spotlight.
 
-The quarantine step is needed because Understudy is not signed with a paid Apple Developer certificate, so macOS treats it as an unidentified download and refuses to open it. The install script says so while it runs rather than doing it quietly.
+The quarantine step is needed because Encore is not signed with a paid Apple Developer certificate, so macOS treats it as an unidentified download and refuses to open it. The install script says so while it runs rather than doing it quietly.
 
-If you would rather not pipe a URL into a shell, which is a reasonable thing to prefer, do the same three things by hand. Download `Understudy.zip` from [Releases](https://github.com/chachasmooth/Understudy/releases), unzip it into `/Applications`, then:
+If you would rather not pipe a URL into a shell, which is a reasonable thing to prefer, do the same three things by hand. Download `Encore.zip` from [Releases](https://github.com/chachasmooth/Encore/releases), unzip it into `/Applications`, then:
 
 ```bash
-xattr -dr com.apple.quarantine /Applications/Understudy.app
+xattr -dr com.apple.quarantine /Applications/Encore.app
 ```
 
 ## Using it
 
-Open Understudy on both Macs.
+Open Encore on both Macs.
 
 On the Mac you want to extend, choose **Extend this Mac**, pick which MacBook is acting as the screen and which edge it sits on, then press Start. It shows a six digit code.
 
@@ -136,33 +138,33 @@ The role is chosen once per launch and cannot be switched back, because only one
 
 ### Turn off Universal Control first
 
-If both Macs are signed into the same Apple ID, macOS Universal Control is probably already on, and it will fight Understudy for the same screen edge. Turn it off in System Settings > Displays > Advanced, under "Allow your pointer and keyboard to move between any nearby Mac or iPad".
+If both Macs are signed into the same Apple ID, macOS Universal Control is probably already on, and it will fight Encore for the same screen edge. Turn it off in System Settings > Displays > Advanced, under "Allow your pointer and keyboard to move between any nearby Mac or iPad".
 
-The two do genuinely different things and are easy to confuse. Universal Control sends your *cursor* to the other Mac so you can use its own apps. Understudy gives you a second *display* whose windows live on this Mac. When the spare is showing Understudy fullscreen and your cursor arrives via Universal Control, you are pointing at the spare's own desktop sitting on top of the picture, and clicking does nothing to the window you can see.
+The two do genuinely different things and are easy to confuse. Universal Control sends your *cursor* to the other Mac so you can use its own apps. Encore gives you a second *display* whose windows live on this Mac. When the spare is showing Encore fullscreen and your cursor arrives via Universal Control, you are pointing at the spare's own desktop sitting on top of the picture, and clicking does nothing to the window you can see.
 
-Understudy cannot detect Universal Control to work around it. CoreGraphics does not report the link as a display at all, so only you can see where it is.
+Encore cannot detect Universal Control to work around it. CoreGraphics does not report the link as a display at all, so only you can see where it is.
 
-If you want to keep Universal Control, put Understudy on an edge it is not using. Above and Below are usually free, since two laptops side by side link along a left or right edge.
+If you want to keep Universal Control, put Encore on an edge it is not using. Above and Below are usually free, since two laptops side by side link along a left or right edge.
 
 ### When the picture is not there
 
 The spare shows a small box in the top left corner if three seconds pass with no new frame. It stays hidden the rest of the time. It reports how many frames and keyframes have arrived, how long ago the last one was, and what the first keyframe decoded to.
 
-That last line is the useful one. The client decodes its first keyframe itself and writes it to `~/Library/Logs/Understudy/client-keyframe.png`, so you can open the file and see what actually came across rather than guessing from a black screen. A frame count that climbs while the screen stays black means something is wrong with drawing it, not with sending it.
+That last line is the useful one. The client decodes its first keyframe itself and writes it to `~/Library/Logs/Encore/client-keyframe.png`, so you can open the file and see what actually came across rather than guessing from a black screen. A frame count that climbs while the screen stays black means something is wrong with drawing it, not with sending it.
 
 An idle desktop legitimately sends almost nothing, because ScreenCaptureKit only produces a frame when something changes. A heartbeat covers that once a second. Low numbers on a still screen are normal.
 
 ## Building it yourself
 
 ```bash
-git clone https://github.com/chachasmooth/Understudy.git
+git clone https://github.com/chachasmooth/Encore.git
 ```
 
 ```bash
-cd Understudy && ./Tools/build-app.sh
+cd Encore && ./Tools/build-app.sh
 ```
 
-That produces `build/Understudy.app`, already signed for local use, plus a zip. Xcode is not required, Command Line Tools are enough.
+That produces `build/Encore.app`, already signed for local use, plus a zip. Xcode is not required, Command Line Tools are enough.
 
 The app icon is built from `Tools/icon.png` during the build, so replacing that one file changes it. `Tools/icon.svg` is the artwork, and `swift Tools/render-icon.swift` re-renders one into the other.
 
@@ -172,7 +174,7 @@ The app icon is built from `Tools/icon.png` during the build, so replacing that 
 The probe exercises everything built so far on a single machine: it creates the display, captures it, encodes and decodes, then streams real frames to a client over a socket on loopback.
 
 ```bash
-swift run understudy-probe 20
+swift run encore-probe 20
 ```
 
 ```
@@ -190,7 +192,7 @@ swift run understudy-probe 20
   ✓ A client with the wrong pairing code was refused
 ```
 
-The first captured frame is saved to `~/Library/Logs/Understudy/probe-capture.png` and the probe prints the path, so you can open it and see exactly what came back.
+The first captured frame is saved to `~/Library/Logs/Encore/probe-capture.png` and the probe prints the path, so you can open it and see exactly what came back.
 
 Two things surprise people here. The probe's display has no wallpaper, so that PNG is mostly black with only a menu bar across the top, and that is correct rather than broken. The app sets one; the probe does not, on purpose, because a black frame with a bright menu bar is a better test of whether real pixels are arriving. An idle screen also produces very few frames with new content.
 
@@ -198,13 +200,13 @@ Open System Settings > Displays while it runs and you will find a second monitor
 
 ## Caveats
 
-Understudy depends on private Apple API. No public alternative exists, and every application in this category makes the same compromise. What that means in practice:
+Encore depends on private Apple API. No public alternative exists, and every application in this category makes the same compromise. What that means in practice:
 
-A macOS update can break it. Understudy checks that the classes and methods it needs are still present and reports a clear error if they are not, so you get an explanation rather than a crash. It still stops working until somebody updates it.
+A macOS update can break it. Encore checks that the classes and methods it needs are still present and reports a clear error if they are not, so you get an explanation rather than a crash. It still stops working until somebody updates it.
 
 Releases are signed ad-hoc rather than with a paid Apple Developer certificate, so Gatekeeper treats the app as an unidentified download. Clearing the quarantine flag is enough to open it, and the installer does that for you. Plenty of open source Mac apps ship this way. It does mean you are trusting the source, so the install script is short enough to read before you run it.
 
-Only one virtual display can exist on the machine at a time. Not one per process, which is what I assumed at first and spent a while being wrong about. A leaked display blocks every other process from creating one, including the next launch of Understudy. That is why the role is chosen once per launch and cannot be changed back, and it needs solving before more than one spare MacBook can be driven.
+Only one virtual display can exist on the machine at a time. Not one per process, which is what I assumed at first and spent a while being wrong about. A leaked display blocks every other process from creating one, including the next launch of Encore. That is why the role is chosen once per launch and cannot be changed back, and it needs solving before more than one spare MacBook can be driven.
 
 ## Roadmap
 
@@ -232,7 +234,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md). Compatibility reports are useful even wh
 [GPL-3.0](LICENSE).
 
 Use it, change it, share it. If you distribute a modified version, you have to
-release your changes under the same licence. That keeps Understudy open, and
+release your changes under the same licence. That keeps Encore open, and
 stops anyone shipping a closed commercial fork of it.
 
 Copyright (C) 2026 chachasmooth

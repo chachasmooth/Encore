@@ -6,14 +6,14 @@ body:
   - type: markdown
     attributes:
       value: |
-        Understudy relies on private Apple API that can change between releases.
+        Encore relies on private Apple API that can change between releases.
         Reports are valuable **whether or not it worked**. A confirmed-working
         version is just as useful as a broken one.
 
         Run this and paste the output below:
 
         ```
-        swift run understudy-probe 5
+        swift run encore-probe 5
         ```
 
   - type: input

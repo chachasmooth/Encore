@@ -54,7 +54,7 @@ public final class DisplayCapture: NSObject {
 
     /// Frames are handled here rather than on the main queue so that a slow
     /// consumer stalls capture instead of the user interface.
-    private let outputQueue = DispatchQueue(label: "com.understudy.capture", qos: .userInteractive)
+    private let outputQueue = DispatchQueue(label: "com.encore.capture", qos: .userInteractive)
 
     private var stream: SCStream?
     /// Only ever touched on `outputQueue`, since the delivery callback reads it

@@ -2,7 +2,7 @@
 
 ## My pledge
 
-I want Understudy to be a welcoming project for anyone who wants to contribute,
+I want Encore to be a welcoming project for anyone who wants to contribute,
 whatever their experience level, background, or identity.
 
 ## Expected behaviour
@@ -23,7 +23,7 @@ whatever their experience level, background, or identity.
 ## Scope
 
 This applies everywhere the project lives: issues, pull requests, discussions,
-and anywhere someone is representing Understudy publicly.
+and anywhere someone is representing Encore publicly.
 
 ## Enforcement
 

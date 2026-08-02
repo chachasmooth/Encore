@@ -5,14 +5,14 @@ import CoreMedia
 import CoreVideo
 import Foundation
 import Network
-import UnderstudyKit
+import EncoreKit
 
 // A diagnostic tool, not part of the shipping app. It creates a virtual display,
 // confirms macOS registered it with the requested geometry, holds it open so the
 // result is visible in System Settings > Displays, then tears it down and checks
 // that it disappeared.
 //
-//   swift run understudy-probe [seconds]
+//   swift run encore-probe [seconds]
 
 let holdSeconds = CommandLine.arguments.count > 1
     ? (Double(CommandLine.arguments[1]) ?? 20)
@@ -43,9 +43,9 @@ func pump(_ seconds: TimeInterval) {
 heading("Environment")
 note("macOS \(ProcessInfo.processInfo.operatingSystemVersionString)")
 
-guard USVirtualDisplay.isSupported else {
+guard ENVirtualDisplay.isSupported else {
     fail("The private virtual display API is not available on this system.")
-    note("Understudy cannot work here. This usually means a macOS update removed it.")
+    note("Encore cannot work here. This usually means a macOS update removed it.")
     exit(1)
 }
 pass("Private virtual display API is present")
@@ -73,7 +73,7 @@ note("Requesting \(preset.name): \(preset.pointWidth)×\(preset.pointHeight) pts
 
 let display: VirtualDisplay
 do {
-    display = try VirtualDisplay(preset: preset, name: "Understudy Probe")
+    display = try VirtualDisplay(preset: preset, name: "Encore Probe")
 } catch {
     fail("Creation failed: \(error.localizedDescription)")
     exit(1)
@@ -525,7 +525,7 @@ if outboundMessages.isEmpty {
     note("Skipped, since no encoded frames were available to send.")
 } else {
     let code = PairingCode.random()
-    let server = StreamServer(pairingCode: code, serviceName: "Understudy Probe")
+    let server = StreamServer(pairingCode: code, serviceName: "Encore Probe")
     let lock = NSLock()
 
     var serverStarted = false
@@ -576,10 +576,10 @@ if outboundMessages.isEmpty {
         finder.browse()
         waitUntil(8) {
             lock.lock(); defer { lock.unlock() }
-            return discovered.contains("Understudy Probe")
+            return discovered.contains("Encore Probe")
         }
         lock.lock(); let visible = discovered; lock.unlock()
-        if visible.contains("Understudy Probe") {
+        if visible.contains("Encore Probe") {
             pass("Host discovered over Bonjour by name")
         } else {
             fail("Host never appeared over Bonjour" + (visible.isEmpty ? "" : ", saw \(visible)"))

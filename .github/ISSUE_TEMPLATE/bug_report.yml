@@ -5,7 +5,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Thanks for reporting. Understudy talks to undocumented macOS API, so the
+        Thanks for reporting. Encore talks to undocumented macOS API, so the
         probe output below usually explains the problem immediately.
 
   - type: textarea
@@ -21,7 +21,7 @@ body:
     attributes:
       label: Probe output
       description: |
-        Run `swift run understudy-probe 5` and paste the full output.
+        Run `swift run encore-probe 5` and paste the full output.
         This is the single most useful thing you can include.
       render: shell
     validations:

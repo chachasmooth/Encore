@@ -16,18 +16,18 @@ public enum PairingCode {
     /// Derives the shared key. The prefix keeps this key distinct from anything
     /// else the same digits might be used for.
     static func preSharedKey(for code: String) -> Data {
-        Data(SHA256.hash(data: Data("understudy-pairing-v1:\(code)".utf8)))
+        Data(SHA256.hash(data: Data("encore-pairing-v1:\(code)".utf8)))
     }
 }
 
 public enum StreamTransport {
     /// Bonjour service type both ends use to find each other.
-    public static let serviceType = "_understudy._tcp"
+    public static let serviceType = "_encore._tcp"
 
     static func parameters(pairingCode: String) -> NWParameters {
         let tls = NWProtocolTLS.Options()
         let key = PairingCode.preSharedKey(for: pairingCode)
-        let identity = Data("understudy".utf8)
+        let identity = Data("encore".utf8)
 
         key.withUnsafeBytes { keyBytes in
             identity.withUnsafeBytes { identityBytes in
@@ -62,7 +62,7 @@ public final class StreamServer {
 
     private let pairingCode: String
     private let serviceName: String
-    private let queue = DispatchQueue(label: "com.understudy.server")
+    private let queue = DispatchQueue(label: "com.encore.server")
 
     /// Marks `queue` so code can tell whether it is already running on it.
     ///
@@ -211,7 +211,7 @@ public final class StreamServer {
 /// Finds a host over Bonjour, pairs with it, and receives frames.
 public final class StreamClient {
     private let pairingCode: String
-    private let queue = DispatchQueue(label: "com.understudy.client")
+    private let queue = DispatchQueue(label: "com.encore.client")
 
     // Same reentrancy trap as the server: drainBuffer calls disconnect() on a
     // malformed message, and drainBuffer already runs on this queue.

@@ -1,11 +1,11 @@
 import XCTest
-@testable import UnderstudyKit
+@testable import EncoreKit
 
 // Pure logic only. GitHub's macOS runners are headless, so anything that creates
-// a real display would fail in CI — that verification lives in understudy-probe.
+// a real display would fail in CI — that verification lives in encore-probe.
 //
 // XCTest rather than swift-testing, because swift-testing ships with Xcode and
-// Understudy is buildable with Command Line Tools alone.
+// Encore is buildable with Command Line Tools alone.
 final class DisplayPresetTests: XCTestCase {
 
     func testPixelSizeScalesWithScaleFactor() {

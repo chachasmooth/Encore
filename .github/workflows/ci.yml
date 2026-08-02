@@ -27,11 +27,11 @@ jobs:
         run: swift build --build-tests
 
       # Runners are headless, so these cover pure logic only. Anything that
-      # creates a real display belongs in understudy-probe, run manually.
+      # creates a real display belongs in encore-probe, run manually.
       - name: Test
         run: swift test --skip-build
 
-      # Understudy calls undocumented CoreGraphics API. If Apple removes these
+      # Encore calls undocumented CoreGraphics API. If Apple removes these
       # classes in a future macOS, this fails loudly instead of silently
       # shipping a broken build.
       - name: Verify private API still exists

@@ -2,12 +2,12 @@
 import PackageDescription
 
 let package = Package(
-    name: "Understudy",
+    name: "Encore",
     platforms: [.macOS(.v14)],
     products: [
-        .library(name: "UnderstudyKit", targets: ["UnderstudyKit"]),
-        .executable(name: "understudy-probe", targets: ["understudy-probe"]),
-        .executable(name: "Understudy", targets: ["Understudy"]),
+        .library(name: "EncoreKit", targets: ["EncoreKit"]),
+        .executable(name: "encore-probe", targets: ["encore-probe"]),
+        .executable(name: "Encore", targets: ["Encore"]),
     ],
     targets: [
         // Objective-C shim. Every use of Apple's private virtual-display API is
@@ -17,26 +17,26 @@ let package = Package(
             linkerSettings: [.linkedFramework("CoreGraphics")]
         ),
         .target(
-            name: "UnderstudyKit",
+            name: "EncoreKit",
             dependencies: ["CVirtualDisplay"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         .executableTarget(
-            name: "understudy-probe",
-            dependencies: ["UnderstudyKit"],
+            name: "encore-probe",
+            dependencies: ["EncoreKit"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         // The app. Both roles in one bundle, chosen on launch.
         .executableTarget(
-            name: "Understudy",
-            dependencies: ["UnderstudyKit"],
+            name: "Encore",
+            dependencies: ["EncoreKit"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
         // Pure-logic tests only — CI runners are headless, so creating a real
-        // display would fail there. Hardware checks live in understudy-probe.
+        // display would fail there. Hardware checks live in encore-probe.
         .testTarget(
-            name: "UnderstudyKitTests",
-            dependencies: ["UnderstudyKit"],
+            name: "EncoreKitTests",
+            dependencies: ["EncoreKit"],
             swiftSettings: [.swiftLanguageMode(.v5)]
         ),
     ]

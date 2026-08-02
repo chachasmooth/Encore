@@ -1,10 +1,10 @@
 import AVFoundation
 import AppKit
 import SwiftUI
-import UnderstudyKit
+import EncoreKit
 
 @main
-struct UnderstudyApp: App {
+struct EncoreApp: App {
     init() {
         // The spare fills its screen with a picture and shows no controls at
         // all, so the key everyone reaches for has to work. The command-line
@@ -22,7 +22,7 @@ struct UnderstudyApp: App {
     }
 
     var body: some Scene {
-        WindowGroup("Understudy") {
+        WindowGroup("Encore") {
             RootView()
         }
         // Deliberately not .contentSize: that drops .resizable from the window's
@@ -63,7 +63,7 @@ struct RolePicker: View {
     var body: some View {
         VStack(spacing: 28) {
             VStack(spacing: 6) {
-                Text("Understudy").font(.system(size: 34, weight: .semibold))
+                Text("Encore").font(.system(size: 34, weight: .semibold))
                 Text("Use a spare MacBook as a second display")
                     .foregroundStyle(.secondary)
             }
@@ -145,7 +145,7 @@ struct HostView: View {
                         .textSelection(.enabled)
                 }
 
-                Text("On the other MacBook, open Understudy, choose \"Be the second screen\", and enter this code.")
+                Text("On the other MacBook, open Encore, choose \"Be the second screen\", and enter this code.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
@@ -168,12 +168,12 @@ struct HostView: View {
                     .controlSize(.large)
             } else if stopped {
                 Text("Stopped").font(.title2)
-                Text("The second screen has been removed. Only one virtual display can exist at a time, so starting again needs Understudy relaunched.")
+                Text("The second screen has been removed. Only one virtual display can exist at a time, so starting again needs Encore relaunched.")
                     .font(.callout)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 420)
-                Button("Quit Understudy") { NSApp.terminate(nil) }
+                Button("Quit Encore") { NSApp.terminate(nil) }
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
             } else {

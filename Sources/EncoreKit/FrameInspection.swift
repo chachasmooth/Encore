@@ -41,7 +41,7 @@ public enum FrameInspection {
         return (samples > 0 ? total / Double(samples) / 255 : 0, peak)
     }
 
-    /// Writes a frame to `~/Library/Logs/Understudy` and returns where it went.
+    /// Writes a frame to `~/Library/Logs/Encore` and returns where it went.
     ///
     /// Not the temporary directory, which is a path nobody can find, and not the
     /// Desktop, which would trigger a permission prompt on a machine that is
@@ -53,7 +53,7 @@ public enum FrameInspection {
         else { return nil }
 
         let directory = FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Logs/Understudy")
+            .appendingPathComponent("Library/Logs/Encore")
         let url = directory.appendingPathComponent(name)
         do {
             try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)

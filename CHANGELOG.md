@@ -14,14 +14,14 @@ across two Macs over Wi-Fi, with windows dragged onto it and staying there.
 
 ### Added
 
-- `USVirtualDisplay` creates a virtual monitor that macOS treats as real
+- `ENVirtualDisplay` creates a virtual monitor that macOS treats as real
   hardware, via private CoreGraphics API. Verified producing a Retina display of
   1512×982 points backed by 3024×1964 pixels on macOS 26.5.
 - `VirtualDisplay` and `DisplayPreset`, a Swift API with presets matching the
   native geometry of recent MacBook panels.
 - `DisplayInfoReader` reads display geometry across three CoreGraphics and
   AppKit APIs, each of which is unreliable in a different way.
-- `understudy-probe` is a diagnostic CLI that creates a display, verifies macOS
+- `encore-probe` is a diagnostic CLI that creates a display, verifies macOS
   registered it at the requested geometry, and confirms clean teardown.
 - `Tools/dump-private-api.m` prints live signatures of Apple's private classes,
   for checking after macOS updates.
@@ -56,7 +56,7 @@ across two Macs over Wi-Fi, with windows dragged onto it and staying there.
   Verified over loopback: discovery by name, paired handshake, 39 of 39 frames
   delivered and decoded, and a client with the wrong code refused.
 
-- `Understudy.app`: both roles in one bundle, chosen on launch, with the pairing
+- `Encore.app`: both roles in one bundle, chosen on launch, with the pairing
   code shown on screen instead of in a terminal. `Tools/build-app.sh` produces it
   with Command Line Tools alone; Xcode turned out not to be required. Signing is
   ad-hoc, which gives the app its own identity for permissions but leaves
@@ -76,7 +76,7 @@ across two Macs over Wi-Fi, with windows dragged onto it and staying there.
   explicit frame and an autoresizing mask, verified tracking resizes from
   900×418 to 1440×868 to 700×368.
 - The client counts keyframes separately and decodes its first one to a PNG in
-  `~/Library/Logs/Understudy`, since a stream with frames but no keyframes cannot
+  `~/Library/Logs/Encore`, since a stream with frames but no keyframes cannot
   be decoded at all and looks identical to a healthy one by frame count.
 - The virtual display had no wallpaper, so an empty second screen was pure black
   apart from the menu bar and read as a failed connection.
@@ -108,5 +108,5 @@ across two Macs over Wi-Fi, with windows dragged onto it and staying there.
 - Relies on private Apple API, so a macOS update can break it. Detected and
   reported as a clear error rather than a crash.
 
-[Unreleased]: https://github.com/chachasmooth/Understudy/compare/v0.2.0...HEAD
-[0.2.0]: https://github.com/chachasmooth/Understudy/releases/tag/v0.2.0
+[Unreleased]: https://github.com/chachasmooth/Encore/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/chachasmooth/Encore/releases/tag/v0.2.0

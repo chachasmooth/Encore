@@ -104,17 +104,17 @@ public enum ScreenPosition: String, CaseIterable, Sendable {
 /// Swift-facing wrapper around the private-API virtual display.
 ///
 /// The display exists for as long as this object is retained, so the host must
-/// hold onto it. Everything that touches private API lives in `USVirtualDisplay`.
+/// hold onto it. Everything that touches private API lives in `ENVirtualDisplay`.
 public final class VirtualDisplay {
-    private let backing: USVirtualDisplay
+    private let backing: ENVirtualDisplay
     public let preset: DisplayPreset
 
     /// Creates a virtual monitor matching `preset`.
-    /// - Throws: `USVirtualDisplayError` if macOS refuses or the private API has changed shape.
-    public init(preset: DisplayPreset, name: String = "Understudy Display") throws {
+    /// - Throws: `ENVirtualDisplayError` if macOS refuses or the private API has changed shape.
+    public init(preset: DisplayPreset, name: String = "Encore Display") throws {
         // No isSupported check here on purpose: the initialiser below already
         // verifies the private classes exist and throws unsupportedOS itself.
-        self.backing = try USVirtualDisplay(
+        self.backing = try ENVirtualDisplay(
             name: name,
             widthPoints: preset.pointWidth,
             heightPoints: preset.pointHeight,
@@ -154,7 +154,7 @@ public final class VirtualDisplay {
 
     /// Moves the display to the chosen side of the main screen.
     ///
-    /// Applied for this session only. The arrangement is Understudy's to set
+    /// Applied for this session only. The arrangement is Encore's to set
     /// each time it runs, rather than something it should write permanently into
     /// the user's system display preferences.
     @discardableResult

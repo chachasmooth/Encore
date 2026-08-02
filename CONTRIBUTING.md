@@ -1,4 +1,4 @@
-# Contributing to Understudy
+# Contributing to Encore
 
 Thanks for taking an interest. This is a hobby project built in the open, and
 help is genuinely welcome.
@@ -6,11 +6,11 @@ help is genuinely welcome.
 ## Getting set up
 
 ```bash
-git clone https://github.com/chachasmooth/Understudy.git
+git clone https://github.com/chachasmooth/Encore.git
 ```
 
 ```bash
-cd Understudy && swift build && swift test
+cd Encore && swift build && swift test
 ```
 
 You need macOS 14 or later. Xcode Command Line Tools are enough to build the
@@ -27,7 +27,7 @@ Building the app bundle needs no Xcode either:
 To check the virtual display works on your machine:
 
 ```bash
-swift run understudy-probe 20
+swift run encore-probe 20
 ```
 
 ## Where to start
@@ -45,21 +45,21 @@ genuinely open questions worth investigating:
   saturated, so something else is setting the pace.
 - **Glass-to-glass latency.** Never measured properly. It feels good, which is
   not a number.
-- **Testing on other macOS versions.** Understudy is verified on macOS 26.5.
+- **Testing on other macOS versions.** Encore is verified on macOS 26.5.
   Reports from 14.x and 15.x are valuable. Run the probe and open an issue with
   the output either way.
 
 ## Working with the private API
 
-Understudy depends on undocumented Apple API. Two rules keep that manageable:
+Encore depends on undocumented Apple API. Two rules keep that manageable:
 
 1. **Keep it contained.** All private-API use lives in
-   `Sources/CVirtualDisplay/USVirtualDisplay.m`. Nothing else should reference
+   `Sources/CVirtualDisplay/ENVirtualDisplay.m`. Nothing else should reference
    `CGVirtualDisplay*` types. If a change seems to need it elsewhere, that is
    worth discussing in an issue first.
 2. **Fail loudly and clearly.** Check that classes exist and that objects
    respond to selectors before calling them, and return a descriptive
-   `USVirtualDisplayError`. A user on an unsupported macOS should get a sentence
+   `ENVirtualDisplayError`. A user on an unsupported macOS should get a sentence
    explaining the problem, never a crash.
 
 Signatures come from the runtime, not from guesswork. Before changing a private
@@ -82,7 +82,7 @@ clang -fobjc-arc -framework Foundation Tools/dump-private-api.m -o /tmp/dump && 
 `swift test` runs in CI on headless GitHub runners, which have **no display
 server**. Tests must therefore be pure logic. Anything that creates a real
 display will fail there. Hardware-dependent verification belongs in
-`understudy-probe`, run manually.
+`encore-probe`, run manually.
 
 Two tests in this repo once passed while the thing they covered was broken: an
 encoder test with no hardware-acceleration check, and a socket test asserting
@@ -101,7 +101,7 @@ the assertion that breaks.
 ## Reporting bugs
 
 Use the issue templates. For anything display-related, include the full output
-of `swift run understudy-probe` and your macOS version. That output is designed
+of `swift run encore-probe` and your macOS version. That output is designed
 to answer most of the questions a maintainer would otherwise have to ask.
 
 ## Security

@@ -1,8 +1,8 @@
 // Prints the live signatures of the private CoreGraphics virtual-display classes.
 //
-// Understudy calls undocumented API, so its declarations are transcribed from
+// Encore calls undocumented API, so its declarations are transcribed from
 // the runtime rather than from a header. Run this after each major macOS release
-// and compare against the interfaces in Sources/CVirtualDisplay/USVirtualDisplay.m
+// and compare against the interfaces in Sources/CVirtualDisplay/ENVirtualDisplay.m
 // to catch changes before users do.
 //
 //   clang -fobjc-arc -framework Foundation Tools/dump-private-api.m -o /tmp/dump && /tmp/dump
@@ -14,7 +14,7 @@ static void dumpClass(const char *name) {
     printf("\n========== %s ==========\n", name);
     Class cls = objc_getClass(name);
     if (!cls) {
-        printf("  <NOT FOUND — Understudy will refuse to run on this OS>\n");
+        printf("  <NOT FOUND — Encore will refuse to run on this OS>\n");
         return;
     }
     printf("  image: %s\n", class_getImageName(cls) ?: "?");
@@ -49,7 +49,7 @@ int main(void) {
         for (size_t i = 0; i < sizeof(names) / sizeof(*names); i++) {
             dumpClass(names[i]);
         }
-        printf("\nCompare against Sources/CVirtualDisplay/USVirtualDisplay.m\n");
+        printf("\nCompare against Sources/CVirtualDisplay/ENVirtualDisplay.m\n");
     }
     return 0;
 }

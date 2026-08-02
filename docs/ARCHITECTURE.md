@@ -1,6 +1,6 @@
 # Architecture
 
-How Understudy is put together, and why. This document records findings that
+How Encore is put together, and why. This document records findings that
 cost real debugging time, so nobody has to rediscover them.
 
 ## Layout
@@ -8,15 +8,15 @@ cost real debugging time, so nobody has to rediscover them.
 ```
 Sources/
   CVirtualDisplay/     Objective-C. The only code that touches private Apple API.
-  UnderstudyKit/       Swift. Both pipelines, transport, codecs, display management.
-  Understudy/          SwiftUI app. Role picker and two screens. Owns no pipeline.
-  understudy-probe/    Diagnostic CLI exercising every stage on one machine.
+  EncoreKit/       Swift. Both pipelines, transport, codecs, display management.
+  Encore/          SwiftUI app. Role picker and two screens. Owns no pipeline.
+  encore-probe/    Diagnostic CLI exercising every stage on one machine.
 Tools/
-  build-app.sh         Builds and ad-hoc signs Understudy.app, no Xcode needed.
+  build-app.sh         Builds and ad-hoc signs Encore.app, no Xcode needed.
   make-icon.swift      Draws Tools/icon.png, the source for the app icon.
   dump-private-api.m   Prints the live signatures of Apple's private classes.
 Tests/
-  UnderstudyKitTests/  Pure-logic tests. No display creation, CI is headless.
+  EncoreKitTests/  Pure-logic tests. No display creation, CI is headless.
 ```
 
 `HostSession` and `ClientSession` hold the entire pipeline for each role, and
@@ -25,7 +25,7 @@ fell behind every fix, so the app was tested against code the scripts no longer
 shared. Everything that drives a pipeline now drives the same one.
 
 The private-API surface is deliberately tiny and sits behind
-`USVirtualDisplay`, which exposes a normal Objective-C class with normal errors.
+`ENVirtualDisplay`, which exposes a normal Objective-C class with normal errors.
 Swift never sees a private type. When a future macOS release changes something,
 exactly one file needs attention.
 
@@ -56,9 +56,9 @@ They are therefore resolved at runtime with `objc_getClass`, and the interfaces
 are re-declared locally purely to give the compiler type information. Declaring
 an `@interface` emits no symbol; only messaging a class by name would.
 
-`+[USVirtualDisplay isSupported]` checks all four classes exist, and each
+`+[ENVirtualDisplay isSupported]` checks all four classes exist, and each
 required selector is checked with `respondsToSelector:` before use, so an API
-change surfaces as `USVirtualDisplayErrorIncompatibleAPI` rather than a crash.
+change surfaces as `ENVirtualDisplayErrorIncompatibleAPI` rather than a crash.
 
 Signatures were read off the live runtime rather than copied from a header.
 Re-run `Tools/dump-private-api.m` after each major macOS release to check:
@@ -81,7 +81,7 @@ the mode in pixels instead does not produce a HiDPI display.
 ## Reading display geometry is genuinely hard
 
 Three APIs report screen geometry, and each is unreliable in a different way.
-Understudy uses all three because no single one is trustworthy.
+Encore uses all three because no single one is trustworthy.
 
 | API | Gives | Fails when |
 |---|---|---|
@@ -106,7 +106,7 @@ In a command-line process there is no such loop, so **the first read wins for
 the lifetime of the process**.
 
 Anything that initialises AppKit counts as a read, including
-`NSApplication.shared` and `finishLaunching()`. `understudy-probe` therefore
+`NSApplication.shared` and `finishLaunching()`. `encore-probe` therefore
 deliberately avoids both, and lists pre-existing displays using CoreGraphics
 only. Reading `NSScreen` before creating the virtual display makes the display
 appear non-Retina forever afterwards.
@@ -120,7 +120,7 @@ already running and processing notifications.
 recorded here. While one process holds a virtual display, another process
 creating one fails outright, and creating a second after releasing the first
 fails within the same process too. Confirmed by a leaked display in the app
-blocking `understudy-probe` entirely until the app was quit.
+blocking `encore-probe` entirely until the app was quit.
 
 The practical consequence is that a partially-failed host must tear its display
 down. `HostSession.start` does, because a leak holds the machine's only slot and
@@ -252,7 +252,7 @@ pixels. Three throwaway harnesses settled in ten minutes what two days of
 theorising did not.
 
 The client now decodes its first keyframe a second time, on purpose, and writes
-it to `~/Library/Logs/Understudy/client-keyframe.png`. It also counts keyframes
+it to `~/Library/Logs/Encore/client-keyframe.png`. It also counts keyframes
 separately from frames, because a stream carrying deltas and no keyframes cannot
 be decoded at all and looks healthy by frame count alone.
 
