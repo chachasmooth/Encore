@@ -182,6 +182,28 @@ public final class VirtualDisplay {
         return CGCompleteDisplayConfiguration(configuration, .forSession) == .success
     }
 
+    /// Puts the main screen's wallpaper on this display.
+    ///
+    /// macOS paints a desktop picture on physical monitors but leaves a virtual
+    /// display pure black except for the menu bar. Streamed to another Mac that
+    /// reads as a broken connection rather than an empty desktop, which is the
+    /// single most misleading thing about the whole product.
+    @discardableResult
+    public func adoptMainScreenWallpaper() -> Bool {
+        guard let screen = NSScreen.screens.first(where: { $0.displayID == displayID }),
+              let main = NSScreen.screens.first(where: { $0.displayID == CGMainDisplayID() }),
+              let wallpaper = NSWorkspace.shared.desktopImageURL(for: main)
+        else { return false }
+
+        let options = NSWorkspace.shared.desktopImageOptions(for: main) ?? [:]
+        do {
+            try NSWorkspace.shared.setDesktopImageURL(wallpaper, for: screen, options: options)
+            return true
+        } catch {
+            return false
+        }
+    }
+
     /// CoreGraphics ID used to target this screen for capture.
     public var displayID: CGDirectDisplayID { backing.displayID }
 
