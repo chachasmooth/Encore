@@ -12,6 +12,8 @@ public final class ClientSession {
     private let state = NSLock()
     private var format: CMFormatDescription?
     private var connecting = false
+    private var connected = false
+    private var attempt: DispatchWorkItem?
     private var awaitingKeyframe = false
     private var _framesReceived = 0
 
@@ -42,16 +44,37 @@ public final class ClientSession {
                 onStatus?("Found \(name). Pairing...")
             }
             client.connect(to: first.endpoint)
+
+            // Bonjour records outlive the process that published them, so a
+            // host that has stopped is still advertised and NWConnection will
+            // retry that dead address forever rather than failing. Without a
+            // deadline the client simply sits on "Pairing..." indefinitely.
+            let deadline = DispatchWorkItem { [weak self] in
+                guard let self else { return }
+                state.lock()
+                let stillTrying = !connected
+                if stillTrying { connecting = false }
+                state.unlock()
+                guard stillTrying else { return }
+                client.disconnect()
+                onStatus?("No answer from that Mac. Check it still has \"Extend this Mac\" running, then try again.")
+            }
+            attempt?.cancel()
+            attempt = deadline
+            DispatchQueue.global().asyncAfter(deadline: .now() + 10, execute: deadline)
         }
 
         client.onConnected = { [weak self] in
-            self?.onStatus?("Connected. Waiting for the first frame...")
-            self?.onConnected?()
+            guard let self else { return }
+            state.lock(); connected = true; state.unlock()
+            attempt?.cancel()
+            onStatus?("Connected. Waiting for the first frame...")
+            onConnected?()
         }
 
         client.onDisconnected = { [weak self] error in
             guard let self else { return }
-            state.lock(); format = nil; connecting = false; state.unlock()
+            state.lock(); format = nil; connecting = false; connected = false; state.unlock()
             onDisconnected?(error)
         }
 
