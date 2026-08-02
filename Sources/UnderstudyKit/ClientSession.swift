@@ -1,4 +1,5 @@
 import CoreMedia
+import CoreVideo
 import Foundation
 import Network
 
@@ -16,6 +17,15 @@ public final class ClientSession {
     private var attempt: DispatchWorkItem?
     private var awaitingKeyframe = false
     private var _framesReceived = 0
+    private var _keyframesReceived = 0
+    /// Second decoder, used once per connection and never for display.
+    ///
+    /// `AVSampleBufferDisplayLayer` decodes privately and shows black when that
+    /// fails, so a broken stream and an empty desktop look identical from the
+    /// outside while the frame counter climbs in both. This decodes the same
+    /// bitstream somewhere the result can be measured and written to a file.
+    private let inspector = FrameDecoder()
+    private var inspected = false
 
     /// A decodable frame, in arrival order.
     public var onFrame: ((CMSampleBuffer) -> Void)?
@@ -23,8 +33,13 @@ public final class ClientSession {
     public var onStatus: ((String) -> Void)?
     public var onConnected: (() -> Void)?
     public var onDisconnected: ((Error?) -> Void)?
+    /// What the first keyframe of this connection actually decoded to, once.
+    public var onFirstKeyframeInspected: ((String) -> Void)?
 
     public var framesReceived: Int { state.lock(); defer { state.unlock() }; return _framesReceived }
+    /// Keyframes specifically. A stream with frames but no keyframes cannot be
+    /// decoded at all, and is indistinguishable from a healthy one by frame count.
+    public var keyframesReceived: Int { state.lock(); defer { state.unlock() }; return _keyframesReceived }
 
     public init(pairingCode: String) {
         client = StreamClient(pairingCode: pairingCode)
@@ -117,8 +132,41 @@ public final class ClientSession {
                         data: data, formatDescription: current, presentationTime: time)
                 else { return }
 
-                state.lock(); _framesReceived += 1; state.unlock()
+                state.lock()
+                _framesReceived += 1
+                if isKeyframe { _keyframesReceived += 1 }
+                // Only a keyframe is worth inspecting. A delta frame on its own
+                // legitimately decodes to nothing, so a failure there would prove
+                // nothing about the stream.
+                let inspect = isKeyframe && !inspected
+                if inspect { inspected = true }
+                state.unlock()
+
                 onFrame?(sample)
+                if inspect { inspectKeyframe(sample) }
+            }
+        }
+    }
+
+    /// Decodes one keyframe and reports what came out, including a PNG on disk.
+    ///
+    /// Three outcomes, and they mean different things. A decode failure says the
+    /// bytes reaching the client are not a usable stream. A successful decode with
+    /// a peak of zero says the host is genuinely sending black. Anything brighter
+    /// says the picture arrives intact and the fault is in showing it.
+    private func inspectKeyframe(_ sample: CMSampleBuffer) {
+        inspector.decode(sample) { [weak self] result in
+            guard let self else { return }
+            switch result {
+            case .failure(let error):
+                onFirstKeyframeInspected?("keyframe did not decode: \(error.localizedDescription)")
+            case .success(let buffer):
+                let (mean, peak) = FrameInspection.brightness(buffer)
+                let path = FrameInspection.savePNG(buffer, named: "client-keyframe.png")
+                onFirstKeyframeInspected?(String(
+                    format: "keyframe %dx%d  mean %.3f  peak %d  %@",
+                    CVPixelBufferGetWidth(buffer), CVPixelBufferGetHeight(buffer),
+                    mean, peak, path ?? "(png not written)"))
             }
         }
     }
