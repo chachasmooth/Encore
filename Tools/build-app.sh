@@ -23,8 +23,10 @@ mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Understudy "$APP/Contents/MacOS/Understudy"
 
 # Built from Tools/icon.png rather than a committed .icns, so replacing that one
-# file is all it takes to change the icon. Tools/make-icon.swift draws the
-# current artwork but is not needed to build.
+# file is all it takes to change the icon. Tools/icon.svg is the artwork it came
+# from; re-render it with:
+#
+#   qlmanage -t -s 1024 -o Tools Tools/icon.svg && mv Tools/icon.svg.png Tools/icon.png
 ICON_KEY=""
 if [ -f Tools/icon.png ]; then
     echo "Building the icon..."
