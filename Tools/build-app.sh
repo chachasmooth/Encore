@@ -22,6 +22,26 @@ rm -rf build
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp .build/release/Understudy "$APP/Contents/MacOS/Understudy"
 
+# Built from Tools/icon.png rather than a committed .icns, so replacing that one
+# file is all it takes to change the icon. Tools/make-icon.swift draws the
+# current artwork but is not needed to build.
+ICON_KEY=""
+if [ -f Tools/icon.png ]; then
+    echo "Building the icon..."
+    ICONSET="build/Understudy.iconset"
+    mkdir -p "$ICONSET"
+    for SIZE in 16 32 128 256 512; do
+        sips -z $SIZE $SIZE Tools/icon.png --out "$ICONSET/icon_${SIZE}x${SIZE}.png" >/dev/null
+        sips -z $((SIZE * 2)) $((SIZE * 2)) Tools/icon.png \
+             --out "$ICONSET/icon_${SIZE}x${SIZE}@2x.png" >/dev/null
+    done
+    iconutil -c icns "$ICONSET" -o "$APP/Contents/Resources/Understudy.icns"
+    rm -rf "$ICONSET"
+    ICON_KEY="  <key>CFBundleIconFile</key><string>Understudy</string>"
+else
+    echo "No Tools/icon.png, building without an icon."
+fi
+
 cat > "$APP/Contents/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -31,6 +51,7 @@ cat > "$APP/Contents/Info.plist" <<PLIST
   <key>CFBundleIdentifier</key><string>com.understudy.app</string>
   <key>CFBundleName</key><string>Understudy</string>
   <key>CFBundleDisplayName</key><string>Understudy</string>
+$ICON_KEY
   <key>CFBundlePackageType</key><string>APPL</string>
   <key>CFBundleShortVersionString</key><string>$VERSION</string>
   <key>CFBundleVersion</key><string>$VERSION</string>
