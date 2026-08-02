@@ -136,6 +136,27 @@ In order, with cause:
 - **13-inch Air preset was wrong** — held 2560×1664 (the 13.6-inch M2) while
   named for the 13-inch. The M1's panel is 2560×1600. All five presets now
   checked against Apple's published specs.
+- **The second screen was black, and that was the whole mystery.** macOS paints
+  a wallpaper on a physical monitor but leaves a virtual display bare, so the
+  second screen was pure black apart from the menu bar. That looks identical to
+  a broken stream. Hours went into the pipeline, which was working perfectly the
+  entire time. `NSWorkspace.setDesktopImageURL(_:for:)` fixes it per screen.
+- **Host could report started while not listening** — the listener's state
+  handler covered `.ready` and `.failed` only, so one stuck in `.waiting`
+  reported neither. Display already created, sitting there as a phantom screen.
+- **Client waited forever on "Pairing..."** — Bonjour keeps advertising a host
+  after it stops, so `NWConnection` chased a dead address indefinitely. Now a
+  ten-second deadline.
+- **`install.sh` could silently do nothing** — it cannot replace a running app
+  and reported success anyway. This is how the spare stayed on 0.1.0 for hours
+  while both of us assumed it was current. It now prints the installed version,
+  and the app shows its version on the first screen.
+- **Fullscreen never engaged** — `WindowAccessor` was never actually in
+  `ClientView` because a scripted edit silently did not match, *and*
+  `.windowResizability(.contentSize)` made the window non-resizable, which makes
+  `toggleFullScreen` a silent no-op.
+- **`Sources/Understudy/UnderstudyApp.swift` was deleted from the working tree**
+  by something unidentified mid-session. Recovered from HEAD. Cause unknown.
 - **CLI tools silently rotted** — `understudy-host`/`understudy-client`
   duplicated `HostSession`/`ClientSession` and received none of the above fixes.
   Deleted.
@@ -144,14 +165,9 @@ In order, with cause:
 
 ## Known problems, unsolved
 
-**Spare's screen freezes (OPEN, current issue).** Connection and fullscreen work,
-but the picture does not update: cursor never appears, a window dragged onto the
-second screen vanishes from both machines. Requires quitting to recover.
-Leading hypothesis, untested: `HostSession.lastBuffer` retains a
-ScreenCaptureKit pool buffer. Holding a pool buffer may starve the pool
-(`queueDepth = 3`) and stall delivery, or the buffer's contents may be recycled
-underneath us so the heartbeat resends stale pixels. Next step is to copy the
-buffer rather than retain the pool's, or hold it only briefly.
+**Windows dragged to the second screen (OPEN).** With a wallpaper now visible
+this is testable for the first time. Suspicion is Universal Control intercepting
+the drag rather than an Understudy bug, but unconfirmed.
 
 **Permissions reset on every rebuild.** Ad-hoc signing. A self-signed
 certificate from Keychain Access would give a stable identity and fix it
@@ -179,6 +195,12 @@ installer is the only route without paying.
   Every check should be asked: what would make this fail?
 - **Scripted edits must fail loudly.** A python `str.replace` that does not match
   and still prints success cost two rounds of "fixed" that was not.
+- **A blank output is not evidence of a broken pipeline.** The single most
+  expensive mistake of the session. Instrument the endpoint before theorising
+  about the path; `frames 936, last 0.4s ago, rendering` on the client settled in
+  one screenshot what four hypotheses had not.
+- **Capture the pixels and look at them.** Twice this ended a long argument: the
+  black-frames question early on, and the wallpaper discovery at the end.
 - **The probe cannot see everything.** Crash reports, screenshots and version
   mismatches between the two machines were all caught by the owner, not the
   probe.
