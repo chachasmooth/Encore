@@ -15,6 +15,13 @@ struct UnderstudyApp: App {
     }
 }
 
+extension Bundle {
+    /// Version from Info.plist, or a clear marker when running unbundled.
+    var appVersion: String {
+        infoDictionary?["CFBundleShortVersionString"] as? String ?? "development build"
+    }
+}
+
 /// Chosen once per launch and never changed back. Only one virtual display can
 /// exist on the machine at a time, so a host that stopped and restarted would
 /// fail to get another, and the simplest fix is not to offer the path.
@@ -55,9 +62,17 @@ struct RolePicker: View {
                        symbol: "display") { role = .client }
             }
 
-            Text("Run this app on both Macs and pick one option on each.")
-                .font(.callout)
-                .foregroundStyle(.tertiary)
+            VStack(spacing: 4) {
+                Text("Run this app on both Macs and pick one option on each.")
+                    .font(.callout)
+                    .foregroundStyle(.tertiary)
+                // Shown because both machines must run the same build, and a
+                // mismatch is otherwise invisible and produces baffling symptoms.
+                Text("Version \(Bundle.main.appVersion)")
+                    .font(.caption)
+                    .foregroundStyle(.quaternary)
+                    .textSelection(.enabled)
+            }
         }
         .padding(40)
         .frame(width: 640)
@@ -73,6 +88,9 @@ struct RolePicker: View {
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .multilineTextAlignment(.center)
+                    // Without an explicit width the text stays on one line and
+                    // truncates rather than wrapping inside the card.
+                    .frame(width: 200)
                     .fixedSize(horizontal: false, vertical: true)
             }
             .frame(width: 240, height: 160)
