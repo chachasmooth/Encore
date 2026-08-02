@@ -103,11 +103,29 @@ public final class StreamServer {
             let listener = try NWListener(using: StreamTransport.parameters(pairingCode: pairingCode))
             listener.service = NWListener.Service(name: serviceName,
                                                   type: StreamTransport.serviceType)
+            // Reported exactly once. Previously only .ready and .failed were
+            // handled, so a listener stuck in .waiting never reported anything
+            // and the host looked started while nothing was accepting
+            // connections. The display was already created by then, so it sat
+            // there as a phantom screen.
+            var reported = false
             listener.stateUpdateHandler = { [weak self] state in
+                guard !reported else { return }
                 switch state {
-                case .ready: completion(nil)
-                case .failed(let error): completion(error); self?.onError?(error)
-                default: break
+                case .ready:
+                    reported = true
+                    completion(nil)
+                case .failed(let error):
+                    reported = true
+                    completion(error)
+                    self?.onError?(error)
+                case .waiting(let error):
+                    // A local listener that cannot bind is usually Local Network
+                    // permission being refused, which otherwise fails silently.
+                    reported = true
+                    completion(error)
+                default:
+                    break
                 }
             }
             listener.newConnectionHandler = { [weak self] connection in

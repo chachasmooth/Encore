@@ -60,6 +60,12 @@ mv "$TEMP/Understudy.app" "$DEST/"
 echo "Clearing quarantine..."
 xattr -dr com.apple.quarantine "$DEST/Understudy.app"
 
+# Verify rather than assume. If the app was running and refused to quit, the
+# copy above fails and the old build stays put, which is impossible to spot
+# from the outside and wasted a lot of testing.
+INSTALLED="$(defaults read "$DEST/Understudy.app/Contents/Info.plist" CFBundleShortVersionString 2>/dev/null || echo unknown)"
+echo "Installed version: $INSTALLED"
+
 cat <<DONE
 
 Installed to $DEST/Understudy.app
