@@ -165,42 +165,52 @@ In order, with cause:
 
 ## Known problems, unsolved
 
-### THE CURRENT BUG — start here
+### THE BLACK SCREEN — solved in v0.1.17
 
-**Host streams, client renders black.** As of v0.1.15, unresolved.
+**The video layer was zero by zero pixels.** The stream had been working the
+whole time.
 
-Evidence, all gathered rather than assumed:
+`VideoLayerView` did two things the working command-line client never did. It
+replaced the view's backing layer after the view was already layer-backed
+(`view.wantsLayer = true` then `view.layer = CALayer()`, which Apple documents
+as the wrong order), and it set the video layer's frame only from
+`updateNSView`. Neither ever gave the layer a size.
 
-- Host UI: **Connected, 3 fps, 0.3 Mb/s, 30 dropped**
-- Client overlay: **`frames 936   last 0.4s ago   rendering`** — frames arriving,
-  fresh, layer healthy
-- A capture of that same virtual display taken from the host at the same time
-  showed the **Lake Tahoe wallpaper and menu bar**, so the display has content
-- The client nonetheless shows pure black
+Measured, not assumed. A standalone harness built both patterns side by side in
+the same SwiftUI window and printed their geometry:
 
-So the display has content, the host sends, the client receives and reports
-rendering, and the output is black. The pipeline is not silent anywhere; it is
-lying somewhere.
+    before fullscreen
+        A attached yes  frame (0.0, 0.0, 0.0, 0.0)      <- the app's pattern
+        B attached yes  frame (0.0, 0.0, 900.0, 418.0)  <- the script's pattern
 
-**Leading suspicion: the 30 dropped frames.** Every drop breaks HEVC's reference
-chain. `StreamServer.onFrameDropped` sets `needsKeyframe`, but nothing guarantees
-the recovery keyframe itself is not also dropped — `send` drops any `.frame`
-whenever `inFlight >= maxInFlight`, keyframe or not. A client that never receives
-an intact keyframe decodes black forever while still counting frames.
+A stayed at 0x0 through six body re-renders and through the fullscreen
+transition. The per-second diagnostics timer re-renders the body every second
+and still never fixed it, because SwiftUI does not re-run `updateNSView` for an
+AppKit-driven resize.
 
-Worth checking too: 3 fps and 0.3 Mb/s are far below the 47-49 fps measured
-earlier tonight, which suggests the send path is backing up rather than the
-screen being idle.
+**Why this looked like a network bug.** A zero-sized `AVSampleBufferDisplayLayer`
+accepts every frame, decodes it, and reports `.rendering`. So the client honestly
+said `frames 936  last 0.4s ago  rendering` while painting nothing. Every visible
+number was healthy because every number was true.
 
-**Next step, and do this before theorising further:** make the client write its
-first decoded frame to a PNG, exactly as was done on the host side. One look
-ends it. Wallpaper in the PNG means decode is fine and the bug is in
-presentation. Black means the frames themselves are black and the drops are the
-cause. Guessing produced four wrong answers tonight; capturing the pixels
-produced two right ones.
+**Why the scripts worked and the app did not.** `understudy-client/main.swift`
+set `videoLayer.frame = content.bounds` and
+`autoresizingMask = [.layerWidthSizable, .layerHeightSizable]`, and added the
+sublayer to AppKit's own layer instead of replacing it. The app now does the
+same, verified to track resizes from 900x418 to 1440x868 to 700x368.
 
-**Candidate fix if drops are the cause:** never drop a keyframe in
-`StreamServer.send`, the same exemption parameter sets already have.
+**Things that were suspected and cleared, in order:**
+
+1. Dropped keyframes breaking the HEVC reference chain. Plausible, and wrong.
+2. `private let layer = AVSampleBufferDisplayLayer()` on a SwiftUI View struct
+   being re-created per render, so frames went to an orphaned layer. Tested with
+   a harness: SwiftUI creates it once. Wrong.
+3. 3 fps and 0.3 Mb/s reading as a stalled send path. They are consistent with an
+   idle desktop plus the 1 Hz heartbeat. ScreenCaptureKit only delivers on change.
+
+**The lesson, again.** Two days of theories about the network, and the answer was
+a rectangle with no width. Three harnesses, ten minutes, done. Build the thing
+that prints the number.
 
 **Windows dragged to the second screen (OPEN, blocked by the above).** Untested
 while the screen is black. Suspicion is Universal Control intercepting the drag
