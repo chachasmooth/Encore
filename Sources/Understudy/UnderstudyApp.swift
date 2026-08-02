@@ -262,6 +262,7 @@ struct ClientView: View {
     /// inside one is whatever it held then, which is nil.
     @State private var windowBox = WindowBox()
     @State private var diagnostics = "waiting for first frame"
+    @State private var inspection = "no keyframe yet"
     @State private var lastFrameAt: Date?
     @State private var framesShown = 0
     private let layer = AVSampleBufferDisplayLayer()
@@ -278,12 +279,15 @@ struct ClientView: View {
                 // empty desktop. This says which.
                 VStack {
                     HStack {
-                        Text(diagnostics)
-                            .font(.system(size: 11, design: .monospaced))
-                            .foregroundStyle(.white.opacity(0.75))
-                            .padding(6)
-                            .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.55)))
-                            .padding(10)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(diagnostics)
+                            Text(inspection)
+                        }
+                        .font(.system(size: 11, design: .monospaced))
+                        .foregroundStyle(.white.opacity(0.75))
+                        .padding(6)
+                        .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.55)))
+                        .padding(10)
                         Spacer()
                     }
                     Spacer()
@@ -331,7 +335,8 @@ struct ClientView: View {
             case .rendering: status = "rendering"
             default: status = "idle"
             }
-            diagnostics = "frames \(framesShown)   last \(since)   \(status)"
+            let keyframes = session?.keyframesReceived ?? 0
+            diagnostics = "frames \(framesShown)   keyframes \(keyframes)   last \(since)   \(status)"
         }
         .background(WindowAccessor { window in
             windowBox.window = window
@@ -346,6 +351,9 @@ struct ClientView: View {
         guard code.count == 6, session == nil else { return }
         let session = ClientSession(pairingCode: code)
         session.onStatus = { text in DispatchQueue.main.async { statusText = text } }
+        session.onFirstKeyframeInspected = { summary in
+            DispatchQueue.main.async { inspection = summary }
+        }
 
         session.onConnected = {
             DispatchQueue.main.async {

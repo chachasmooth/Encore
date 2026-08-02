@@ -32,60 +32,6 @@ func note(_ text: String) { print("    \(text)") }
 // existed — and a bare run loop never refreshes it. A real GUI app is unaffected
 // because it creates its displays after NSApp is already running.
 
-/// Brightness summary of a BGRA frame.
-///
-/// `peak` is what actually distinguishes a working capture from a broken one.
-/// Without Screen Recording permission macOS still delivers correctly sized
-/// frames, but every channel is zero. A working capture of an *empty* virtual
-/// display is also nearly black, because a display with no wallpaper and no
-/// windows on it really is black apart from the menu bar, so `mean` stays near
-/// zero in both cases and cannot tell them apart. A non-zero peak can only come
-/// from real pixels.
-func frameBrightness(_ buffer: CVPixelBuffer) -> (mean: Double, peak: Int) {
-    CVPixelBufferLockBaseAddress(buffer, .readOnly)
-    defer { CVPixelBufferUnlockBaseAddress(buffer, .readOnly) }
-    guard let base = CVPixelBufferGetBaseAddress(buffer) else { return (0, 0) }
-
-    let width = CVPixelBufferGetWidth(buffer)
-    let height = CVPixelBufferGetHeight(buffer)
-    let bytesPerRow = CVPixelBufferGetBytesPerRow(buffer)
-    let pixels = base.assumingMemoryBound(to: UInt8.self)
-
-    // Sampling a grid. Six million pixels is far more than this question needs.
-    var total = 0.0
-    var peak = 0
-    var samples = 0
-    for y in stride(from: 0, to: height, by: 8) {
-        for x in stride(from: 0, to: width, by: 8) {
-            let offset = y * bytesPerRow + x * 4
-            let b = Int(pixels[offset]), g = Int(pixels[offset + 1]), r = Int(pixels[offset + 2])
-            peak = max(peak, max(r, max(g, b)))
-            total += Double(r + g + b) / 3
-            samples += 1
-        }
-    }
-    return (samples > 0 ? total / Double(samples) / 255 : 0, peak)
-}
-
-/// Writes a frame to a PNG and returns where it went.
-///
-/// Being able to look at what was actually captured is what turned "the frames
-/// are black" from a guess into an answer, so the probe always leaves one behind.
-func saveFrame(_ buffer: CVPixelBuffer) -> String? {
-    let image = CIImage(cvPixelBuffer: buffer)
-    guard let cgImage = CIContext().createCGImage(image, from: image.extent),
-          let data = NSBitmapImageRep(cgImage: cgImage).representation(using: .png, properties: [:])
-    else { return nil }
-
-    let url = FileManager.default.temporaryDirectory.appendingPathComponent("understudy-frame.png")
-    do {
-        try data.write(to: url)
-        return url.path
-    } catch {
-        return nil
-    }
-}
-
 /// Runs the run loop for a while so pending notifications land.
 func pump(_ seconds: TimeInterval) {
     let deadline = Date().addingTimeInterval(seconds)
@@ -225,10 +171,10 @@ if !ScreenRecordingPermission.isGranted {
         lock.unlock()
 
         guard needsMeasurement else { return }
-        let brightness = frameBrightness(buffer)
+        let brightness = FrameInspection.brightness(buffer)
         let measured = (CVPixelBufferGetWidth(buffer), CVPixelBufferGetHeight(buffer),
                         brightness.mean, brightness.peak)
-        let path = saveFrame(buffer)
+        let path = FrameInspection.savePNG(buffer, named: "probe-capture.png")
         lock.lock()
         if firstFrame == nil {
             firstFrame = measured
@@ -364,7 +310,7 @@ if !captureVerified {
         capture.start(onFrame: { buffer in
             // Measured before encoding so the source buffer never has to outlive
             // this callback; ScreenCaptureKit recycles it from a pool.
-            let source = frameBrightness(buffer)
+            let source = FrameInspection.brightness(buffer)
 
             lock.lock()
             let time = CMTime(value: frameIndex, timescale: CMTimeScale(preset.refreshRate))
@@ -462,7 +408,7 @@ if !captureVerified {
                             lock.unlock()
 
                         case .success(let pixels):
-                            let stats = frameBrightness(pixels)
+                            let stats = FrameInspection.brightness(pixels)
                             let size = (CVPixelBufferGetWidth(pixels), CVPixelBufferGetHeight(pixels))
                             lock.lock()
                             decodedCount += 1
