@@ -7,6 +7,33 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-08-02
+
+Renamed from Understudy to Encore.
+
+### Changed
+
+- **The project is called Encore.** The old name suggested a stand-in waiting to
+  replace the lead, which is not what this does. The spare Mac assists rather
+  than takes over.
+- **Breaking: the Bonjour service is now `_encore._tcp`.** Both ends have to
+  agree on it, so a Mac still running Understudy will not discover a host.
+- The app is `Encore.app`, with the bundle identifier
+  `io.github.chachasmooth.encore` rather than one under a domain nobody owns.
+  macOS treats it as a new application, so Screen Recording and Local Network
+  permission are requested again.
+- Targets, module, and the Objective-C prefix follow: `EncoreKit`,
+  `encore-probe`, `ENVirtualDisplay`.
+- Client keyframe dumps move to `~/Library/Logs/Encore`.
+
+### Fixed
+
+- Escape leaves fullscreen on the client. The documentation said it did and
+  nothing implemented it.
+- The app icon carried an opaque white square around it, because it was rendered
+  with `qlmanage`, which composites thumbnails onto white. `Tools/render-icon.swift`
+  draws the SVG into an empty bitmap and fails if the corner comes out opaque.
+
 ## [0.2.0] - 2026-08-02
 
 First working version. A spare MacBook can be used as a second display, verified
@@ -108,5 +135,6 @@ across two Macs over Wi-Fi, with windows dragged onto it and staying there.
 - Relies on private Apple API, so a macOS update can break it. Detected and
   reported as a clear error rather than a crash.
 
-[Unreleased]: https://github.com/chachasmooth/Encore/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/chachasmooth/Encore/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/chachasmooth/Encore/releases/tag/v0.3.0
 [0.2.0]: https://github.com/chachasmooth/Encore/releases/tag/v0.2.0
