@@ -26,7 +26,7 @@ cp .build/release/Understudy "$APP/Contents/MacOS/Understudy"
 # file is all it takes to change the icon. Tools/icon.svg is the artwork it came
 # from; re-render it with:
 #
-#   qlmanage -t -s 1024 -o Tools Tools/icon.svg && mv Tools/icon.svg.png Tools/icon.png
+#   swift Tools/render-icon.swift
 ICON_KEY=""
 if [ -f Tools/icon.png ]; then
     echo "Building the icon..."
