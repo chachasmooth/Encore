@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="Tools/icon.png" width="140" alt="Understudy">
+
 # Understudy
 
 **Turn a spare MacBook into a second display for your Mac.**
@@ -28,7 +30,7 @@ Verified across two Macs over Wi-Fi, an M5 MacBook Air streaming to an M1 Air: 4
 | **5. Client that displays them fullscreen** | Working, verified across two Macs |
 | **6. One app, pick a role, done** | Working, unsigned so it needs one command to open |
 
-Still rough in places. It has been tested by one person on two machines, so expect to find things I have not.
+Still rough in places. It has been tested by one person on two machines, so expect to find things I have not. I am not a developer and this is my first project, which is worth knowing before you read the source.
 
 ## What it does
 
@@ -102,18 +104,6 @@ Step one carries all the risk. macOS exposes no public way to register a virtual
 
 [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) covers the details, including three display APIs that each fail in a different way and cost a lot of debugging time.
 
-## Building
-
-macOS 14 or newer, plus Xcode Command Line Tools.
-
-```bash
-git clone https://github.com/chachasmooth/Understudy.git
-```
-
-```bash
-cd Understudy && swift build
-```
-
 ## Installing
 
 ```bash
@@ -132,6 +122,18 @@ xattr -dr com.apple.quarantine /Applications/Understudy.app
 
 ## Using it
 
+Open Understudy on both Macs.
+
+On the Mac you want to extend, choose **Extend this Mac**, pick which MacBook is acting as the screen and which edge it sits on, then press Start. It shows a six digit code.
+
+On the spare, choose **Be the second screen** and enter that code. It fills the screen and starts drawing. Escape leaves fullscreen, and the host has a Stop button that ends the session from the other end.
+
+You can move the second screen to a different edge while it is running. The host's picker stays live.
+
+The host asks for Screen Recording permission the first time, and the spare asks for Local Network access. Both are required, and macOS may need the app restarted after granting.
+
+The role is chosen once per launch and cannot be switched back, because only one virtual display can exist on the machine at a time and a host that stopped would not reliably get another. Quit and reopen to change roles.
+
 ### Turn off Universal Control first
 
 If both Macs are signed into the same Apple ID, macOS Universal Control is probably already on, and it will fight Understudy for the same screen edge. Turn it off in System Settings > Displays > Advanced, under "Allow your pointer and keyboard to move between any nearby Mac or iPad".
@@ -142,16 +144,15 @@ Understudy cannot detect Universal Control to work around it. CoreGraphics does 
 
 If you want to keep Universal Control, put Understudy on an edge it is not using. Above and Below are usually free, since two laptops side by side link along a left or right edge.
 
+### When the picture is not there
 
-Open Understudy on both Macs.
+The spare shows a small box in the top left corner if three seconds pass with no new frame. It stays hidden the rest of the time. It reports how many frames and keyframes have arrived, how long ago the last one was, and what the first keyframe decoded to.
 
-On the Mac you want to extend, choose **Extend this Mac** and pick which MacBook is acting as the screen. It shows a six digit code.
+That last line is the useful one. The client decodes its first keyframe itself and writes it to `~/Library/Logs/Understudy/client-keyframe.png`, so you can open the file and see what actually came across rather than guessing from a black screen. A frame count that climbs while the screen stays black means something is wrong with drawing it, not with sending it.
 
-On the spare, choose **Be the second screen** and enter that code. It fills the screen and starts drawing. Escape leaves fullscreen.
+An idle desktop legitimately sends almost nothing, because ScreenCaptureKit only produces a frame when something changes. A heartbeat covers that once a second. Low numbers on a still screen are normal.
 
-The host asks for Screen Recording permission the first time, and the spare asks for Local Network access. Both are required, and macOS may need the app restarted after granting.
-
-### Building it yourself
+## Building it yourself
 
 ```bash
 git clone https://github.com/chachasmooth/Understudy.git
@@ -161,7 +162,9 @@ git clone https://github.com/chachasmooth/Understudy.git
 cd Understudy && ./Tools/build-app.sh
 ```
 
-That produces `build/Understudy.app`, already signed for local use, plus a zip. Xcode is not required; Command Line Tools are enough.
+That produces `build/Understudy.app`, already signed for local use, plus a zip. Xcode is not required, Command Line Tools are enough.
+
+The app icon is built from `Tools/icon.png` during the build, so replacing that one file changes it. `Tools/make-icon.swift` draws the current artwork and is not needed to build anything.
 
 
 ### Trying it
@@ -187,11 +190,11 @@ swift run understudy-probe 20
   ✓ A client with the wrong pairing code was refused
 ```
 
-The first captured frame is saved as a PNG and the probe prints its path, so you can open it and see exactly what came back.
+The first captured frame is saved to `~/Library/Logs/Understudy/probe-capture.png` and the probe prints the path, so you can open it and see exactly what came back.
 
-Two things surprise people here. A freshly created display has no wallpaper on it, so that PNG is mostly black with only a menu bar across the top, and that is correct rather than broken. An idle screen also produces very few frames with new content, because ScreenCaptureKit sends one only when something actually changes.
+Two things surprise people here. The probe's display has no wallpaper, so that PNG is mostly black with only a menu bar across the top, and that is correct rather than broken. The app sets one; the probe does not, on purpose, because a black frame with a bright menu bar is a better test of whether real pixels are arriving. An idle screen also produces very few frames with new content.
 
-Open System Settings > Displays while it runs and you will find a second monitor listed. Windows dragged onto it vanish from view, since nothing draws them on a second screen yet.
+Open System Settings > Displays while it runs and you will find a second monitor listed. Windows dragged onto it disappear, because the probe has no client attached to draw them anywhere.
 
 ## Caveats
 
@@ -199,9 +202,9 @@ Understudy depends on private Apple API. No public alternative exists, and every
 
 A macOS update can break it. Understudy checks that the classes and methods it needs are still present and reports a clear error if they are not, so you get an explanation rather than a crash. It still stops working until somebody updates it.
 
-Builds you hand to other people need a paid Apple Developer certificate and notarization. Without those, Gatekeeper refuses to open the app.
+Releases are signed ad-hoc rather than with a paid Apple Developer certificate, so Gatekeeper treats the app as an unidentified download. Clearing the quarantine flag is enough to open it, and the installer does that for you. Plenty of open source Mac apps ship this way. It does mean you are trusting the source, so the install script is short enough to read before you run it.
 
-One more limitation, this one unexplained so far: a process can create a single virtual display. Releasing it and creating another in the same process fails, and the second display never registers. That needs solving before Understudy can drive more than one spare MacBook.
+Only one virtual display can exist on the machine at a time. Not one per process, which is what I assumed at first and spent a while being wrong about. A leaked display blocks every other process from creating one, including the next launch of Understudy. That is why the role is chosen once per launch and cannot be changed back, and it needs solving before more than one spare MacBook can be driven.
 
 ## Roadmap
 
@@ -209,13 +212,13 @@ One more limitation, this one unexplained so far: a process can create a single 
 - [x] Capture the virtual display with ScreenCaptureKit
 - [x] Hardware HEVC encode and decode, tuned for latency ahead of quality
 - [x] Wi-Fi transport with Bonjour discovery and paired TLS
+- [x] Pairing, so the two Macs find each other without configuration
 - [x] Client rendering the stream fullscreen
-- [x] Verify across two machines over real Wi-Fi
+- [x] Single app bundle with a host and client role picker
+- [x] Verify across two machines over real Wi-Fi, windows and all
 - [ ] Measure true glass-to-glass latency
-- [ ] Pairing, so the two Macs find each other without configuration
-- [ ] Single app bundle with a host and client role picker
+- [ ] Work out why the stream settles around 47 fps rather than 60
 - [ ] Signed, notarized releases
-- [ ] Wireless transport
 - [ ] More than one client Mac
 
 Out of scope for now: driving the host from the spare Mac's keyboard and trackpad, iPad support, and clients on Windows or Linux.

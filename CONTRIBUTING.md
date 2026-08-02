@@ -16,8 +16,13 @@ cd Understudy && swift build && swift test
 You need macOS 14 or later. Xcode Command Line Tools are enough to build the
 library and run the probe. **`swift test` additionally requires full Xcode**,
 because XCTest is not part of Command Line Tools. If you only have the
-latter, CI will run the tests for you on your pull request. Full Xcode will also be
-needed once app bundles arrive in milestone 5.
+latter, CI will run the tests for you on your pull request.
+
+Building the app bundle needs no Xcode either:
+
+```bash
+./Tools/build-app.sh
+```
 
 To check the virtual display works on your machine:
 
@@ -31,9 +36,15 @@ Open issues labelled `good first issue` are the easiest entry point. Beyond
 that, the [roadmap](README.md#roadmap) lists what is unbuilt, and these are
 genuinely open questions worth investigating:
 
-- **Multiple displays per process.** Creating a second virtual display after
-  releasing the first fails. Working out why would unblock support for several
-  spare MacBooks.
+- **More than one virtual display.** Only one can exist on the machine at a
+  time, and creating another after releasing the first fails. Working out why
+  would unblock driving several spare MacBooks, and would also let the app
+  switch roles without being quit and reopened.
+- **Why the stream settles around 47 fps rather than 60.** Unexplained. Encode
+  is roughly 6 ms per frame on hardware and the network is nowhere near
+  saturated, so something else is setting the pace.
+- **Glass-to-glass latency.** Never measured properly. It feels good, which is
+  not a number.
 - **Testing on other macOS versions.** Understudy is verified on macOS 26.5.
   Reports from 14.x and 15.x are valuable. Run the probe and open an issue with
   the output either way.
@@ -72,6 +83,12 @@ clang -fobjc-arc -framework Foundation Tools/dump-private-api.m -o /tmp/dump && 
 server**. Tests must therefore be pure logic. Anything that creates a real
 display will fail there. Hardware-dependent verification belongs in
 `understudy-probe`, run manually.
+
+Two tests in this repo once passed while the thing they covered was broken: an
+encoder test with no hardware-acceleration check, and a socket test asserting
+`arrived + dropped >= sent`, which held while 38 of 39 frames were dropped. If a
+test cannot fail, it is worse than no test, because it reads as evidence. Write
+the assertion that breaks.
 
 ## Pull requests
 
