@@ -7,7 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
-First working version. A spare MacBook can be used as a second display, verified across two Macs over Wi-Fi.
+## [0.2.0] - 2026-08-02
+
+First working version. A spare MacBook can be used as a second display, verified
+across two Macs over Wi-Fi, with windows dragged onto it and staying there.
 
 ### Added
 
@@ -63,6 +66,27 @@ First working version. A spare MacBook can be used as a second display, verified
 
 ### Fixed
 
+- The client rendered black while reporting healthy. Its video layer was zero by
+  zero pixels for the life of the window, because `VideoLayerView` replaced the
+  view's backing layer after the view was already layer-backed, and set the
+  layer's frame only from SwiftUI's update pass, which does not run when AppKit
+  resizes the window for fullscreen. A zero-sized `AVSampleBufferDisplayLayer`
+  accepts frames, decodes them, and reports itself as rendering while drawing
+  nothing, so every number on screen was healthy and true. The layer now gets an
+  explicit frame and an autoresizing mask, verified tracking resizes from
+  900×418 to 1440×868 to 700×368.
+- The client counts keyframes separately and decodes its first one to a PNG in
+  `~/Library/Logs/Understudy`, since a stream with frames but no keyframes cannot
+  be decoded at all and looks identical to a healthy one by frame count.
+- The virtual display had no wallpaper, so an empty second screen was pure black
+  apart from the menu bar and read as a failed connection.
+- The client never entered fullscreen on connect. Two causes: the window accessor
+  was missing, and `.windowResizability(.contentSize)` drops `.resizable`, which
+  makes `toggleFullScreen` a silent no-op.
+- A crash on client connect, from `dispatch_sync` onto a queue the calling thread
+  already owned.
+- A leaked virtual display when the server failed to start, which held the
+  machine's only slot.
 - The `macBookAir13` preset described the 13.6-inch M2 Air (2560×1664) while
   being named for the 13-inch. The 13.3-inch Air, including the M1, is 2560×1600.
   Presets are now the five distinct panel resolutions across every MacBook from
@@ -84,4 +108,5 @@ First working version. A spare MacBook can be used as a second display, verified
 - Relies on private Apple API, so a macOS update can break it. Detected and
   reported as a clear error rather than a crash.
 
-[Unreleased]: https://github.com/chachasmooth/Understudy/commits/main
+[Unreleased]: https://github.com/chachasmooth/Understudy/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/chachasmooth/Understudy/releases/tag/v0.2.0

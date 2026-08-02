@@ -212,9 +212,10 @@ same, verified to track resizes from 900x418 to 1440x868 to 700x368.
 a rectangle with no width. Three harnesses, ten minutes, done. Build the thing
 that prints the number.
 
-**Windows dragged to the second screen (OPEN, blocked by the above).** Untested
-while the screen is black. Suspicion is Universal Control intercepting the drag
-rather than an Understudy bug.
+**Windows dragged to the second screen: WORKING.** Verified once the layer fix
+landed. Windows pushed off the chosen edge land on the second screen and stay
+there. This was the original point of the project and it had never once been
+confirmed before v0.1.17, because the black screen hid it.
 
 **Permissions reset on every rebuild.** Ad-hoc signing. A self-signed
 certificate from Keychain Access would give a stable identity and fix it

@@ -7,7 +7,7 @@
 [![CI](https://github.com/chachasmooth/Understudy/actions/workflows/ci.yml/badge.svg)](https://github.com/chachasmooth/Understudy/actions/workflows/ci.yml)
 [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/platform-macOS%2014%2B-lightgrey.svg)](#requirements)
-[![Status](https://img.shields.io/badge/status-early%20development-orange.svg)](#status)
+[![Status](https://img.shields.io/badge/status-working-brightgreen.svg)](#status)
 
 </div>
 
@@ -15,9 +15,9 @@
 
 ## Status
 
-Early development, but it works. You can use a spare MacBook as a second display today, if you are willing to run two terminal commands.
+It works end to end. Install it on both Macs, pair them with a six digit code, and the spare becomes a second display you can drag windows onto.
 
-The whole pipeline works and has run across two Macs over Wi-Fi: an M5 MacBook Air streaming to an M1 Air, 47 to 49 fps with no dropped frames, peaking at 51 Mb/s while a window was dragged around.
+Verified across two Macs over Wi-Fi, an M5 MacBook Air streaming to an M1 Air: 47 to 49 fps, peaking at 51 Mb/s while a window was dragged around. Windows dropped onto the second screen land there and stay there. The cursor crosses onto it.
 
 | Milestone | State |
 |---|---|
@@ -28,9 +28,9 @@ The whole pipeline works and has run across two Macs over Wi-Fi: an M5 MacBook A
 | **5. Client that displays them fullscreen** | Working, verified across two Macs |
 | **6. One app, pick a role, done** | Working, unsigned so it needs one command to open |
 
-Star the repo if you want to hear when it works end to end.
+Still rough in places. It has been tested by one person on two machines, so expect to find things I have not.
 
-## What it will do
+## What it does
 
 Open Understudy on both Macs, pair them with a six digit code, and the spare one becomes a second display for the main one. Drag windows onto it, park your reference docs there, extend your desktop the way you would with any monitor.
 
