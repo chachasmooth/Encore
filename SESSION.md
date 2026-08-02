@@ -165,9 +165,46 @@ In order, with cause:
 
 ## Known problems, unsolved
 
-**Windows dragged to the second screen (OPEN).** With a wallpaper now visible
-this is testable for the first time. Suspicion is Universal Control intercepting
-the drag rather than an Understudy bug, but unconfirmed.
+### THE CURRENT BUG — start here
+
+**Host streams, client renders black.** As of v0.1.15, unresolved.
+
+Evidence, all gathered rather than assumed:
+
+- Host UI: **Connected, 3 fps, 0.3 Mb/s, 30 dropped**
+- Client overlay: **`frames 936   last 0.4s ago   rendering`** — frames arriving,
+  fresh, layer healthy
+- A capture of that same virtual display taken from the host at the same time
+  showed the **Lake Tahoe wallpaper and menu bar**, so the display has content
+- The client nonetheless shows pure black
+
+So the display has content, the host sends, the client receives and reports
+rendering, and the output is black. The pipeline is not silent anywhere; it is
+lying somewhere.
+
+**Leading suspicion: the 30 dropped frames.** Every drop breaks HEVC's reference
+chain. `StreamServer.onFrameDropped` sets `needsKeyframe`, but nothing guarantees
+the recovery keyframe itself is not also dropped — `send` drops any `.frame`
+whenever `inFlight >= maxInFlight`, keyframe or not. A client that never receives
+an intact keyframe decodes black forever while still counting frames.
+
+Worth checking too: 3 fps and 0.3 Mb/s are far below the 47-49 fps measured
+earlier tonight, which suggests the send path is backing up rather than the
+screen being idle.
+
+**Next step, and do this before theorising further:** make the client write its
+first decoded frame to a PNG, exactly as was done on the host side. One look
+ends it. Wallpaper in the PNG means decode is fine and the bug is in
+presentation. Black means the frames themselves are black and the drops are the
+cause. Guessing produced four wrong answers tonight; capturing the pixels
+produced two right ones.
+
+**Candidate fix if drops are the cause:** never drop a keyframe in
+`StreamServer.send`, the same exemption parameter sets already have.
+
+**Windows dragged to the second screen (OPEN, blocked by the above).** Untested
+while the screen is black. Suspicion is Universal Control intercepting the drag
+rather than an Understudy bug.
 
 **Permissions reset on every rebuild.** Ad-hoc signing. A self-signed
 certificate from Keychain Access would give a stable identity and fix it
