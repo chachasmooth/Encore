@@ -41,3 +41,6 @@ Icon?
 *.log
 scratch/
 tmp/
+
+# Working notes, kept out of the public repo
+SESSION.md
