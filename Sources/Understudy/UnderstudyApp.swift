@@ -9,7 +9,9 @@ struct UnderstudyApp: App {
         WindowGroup("Understudy") {
             RootView()
         }
-        .windowResizability(.contentSize)
+        // Deliberately not .contentSize: that drops .resizable from the window's
+        // style mask, and toggleFullScreen silently does nothing without it.
+        .windowResizability(.automatic)
     }
 }
 
@@ -237,7 +239,10 @@ struct ClientView: View {
     @State private var session: ClientSession?
     @State private var statusText = ""
     @State private var showingVideo = false
-    @State private var window: NSWindow?
+    /// A reference type on purpose. Escaping callbacks capture the View struct
+    /// as it was when they were created, so a plain @State NSWindow? read back
+    /// inside one is whatever it held then, which is nil.
+    @State private var windowBox = WindowBox()
     private let layer = AVSampleBufferDisplayLayer()
 
     var body: some View {
@@ -275,9 +280,17 @@ struct ClientView: View {
                     }
                 }
                 .padding(40)
-                .frame(width: 520)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             }
         }
+        .frame(minWidth: 520, minHeight: 320)
+        .background(WindowAccessor { window in
+            windowBox.window = window
+            // Belt and braces: fullscreen is refused outright on a window that
+            // is not resizable, and it fails quietly.
+            window.styleMask.insert(.resizable)
+            window.collectionBehavior.insert(.fullScreenPrimary)
+        })
     }
 
     private func connect() {
@@ -288,7 +301,7 @@ struct ClientView: View {
         session.onConnected = {
             DispatchQueue.main.async {
                 showingVideo = true
-                setFullScreen(window, true)
+                setFullScreen(windowBox.window, true)
             }
         }
 
@@ -300,7 +313,7 @@ struct ClientView: View {
                 statusText = "The other Mac stopped sharing."
                 layer.flush()
                 self.session = nil
-                leaveFullScreenAndResize(window)
+                leaveFullScreenAndResize(windowBox.window)
             }
         }
 
@@ -319,6 +332,12 @@ struct ClientView: View {
         session.start()
         self.session = session
     }
+}
+
+/// Holds the window by reference, so callbacks read the current one rather than
+/// whatever the View struct held when they were created.
+final class WindowBox {
+    var window: NSWindow?
 }
 
 /// Hands back the real NSWindow behind a SwiftUI view.
