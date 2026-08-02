@@ -64,6 +64,9 @@ public final class HostSession {
             // Placed deliberately. Otherwise macOS puts it on the left, where it
             // collides with wherever Universal Control has the other Mac.
             display.place(position)
+            // Otherwise the second screen is pure black apart from the menu
+            // bar, which looks like a failed connection rather than an empty desktop.
+            display.adoptMainScreenWallpaper()
             let encoder = try FrameEncoder(pixelWidth: Int(preset.pixelWidth),
                                            pixelHeight: Int(preset.pixelHeight),
                                            frameRate: Int(preset.refreshRate))
