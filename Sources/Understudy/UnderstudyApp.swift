@@ -263,6 +263,7 @@ struct ClientView: View {
     @State private var windowBox = WindowBox()
     @State private var diagnostics = "waiting for first frame"
     @State private var inspection = "no keyframe yet"
+    @State private var showingStats = true
     @State private var lastFrameAt: Date?
     @State private var framesShown = 0
     private let layer = AVSampleBufferDisplayLayer()
@@ -273,24 +274,29 @@ struct ClientView: View {
             Color.black.ignoresSafeArea()
             if showingVideo {
                 VideoLayerView(layer: layer).ignoresSafeArea()
-                // Deliberately visible over the picture. A blank second screen
-                // has several possible causes and they are indistinguishable by
-                // eye: nothing arriving, arriving but not decoding, or a genuinely
-                // empty desktop. This says which.
-                VStack {
-                    HStack {
-                        VStack(alignment: .leading, spacing: 2) {
-                            Text(diagnostics)
-                            Text(inspection)
+                // Shown only when the picture has stopped or never started. A
+                // monitor with a stats box permanently burned into the corner is
+                // not a monitor, but a black screen with no explanation is worse,
+                // and the difference between "nothing is arriving", "arriving but
+                // not decoding" and "the desktop really is empty" cannot be told
+                // by eye.
+                if showingStats {
+                    VStack {
+                        HStack {
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text(diagnostics)
+                                Text(inspection)
+                            }
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.75))
+                            .padding(6)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.55)))
+                            .padding(10)
+                            Spacer()
                         }
-                        .font(.system(size: 11, design: .monospaced))
-                        .foregroundStyle(.white.opacity(0.75))
-                        .padding(6)
-                        .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.55)))
-                        .padding(10)
                         Spacer()
                     }
-                    Spacer()
+                    .transition(.opacity)
                 }
             } else {
                 VStack(spacing: 20) {
@@ -337,6 +343,14 @@ struct ClientView: View {
             }
             let keyframes = session?.keyframesReceived ?? 0
             diagnostics = "frames \(framesShown)   keyframes \(keyframes)   last \(since)   \(status)"
+
+            // Three seconds, because a still desktop legitimately sends nothing
+            // and the 1 Hz heartbeat covers that. Longer than that and something
+            // is actually wrong.
+            let stalled = lastFrameAt.map { Date().timeIntervalSince($0) > 3 } ?? true
+            if stalled != showingStats {
+                withAnimation(.easeInOut(duration: 0.4)) { showingStats = stalled }
+            }
         }
         .background(WindowAccessor { window in
             windowBox.window = window
