@@ -31,6 +31,7 @@ public final class HostSession {
     /// client that connects to an idle desktop waits forever for a first frame
     /// and shows nothing.
     private var lastBuffer: CVPixelBuffer?
+    private var lastSnapshot = Date.distantPast
     private var lastSendTime = Date.distantPast
     private var heartbeat: DispatchSourceTimer?
 
@@ -121,7 +122,23 @@ public final class HostSession {
     private func beginCapturing(completion: @escaping (Error?) -> Void) {
         capture?.start(onFrame: { [weak self] buffer in
             guard let self else { return }
-            state.lock(); lastBuffer = buffer; state.unlock()
+
+            // Snapshot rather than retain. These buffers come from
+            // ScreenCaptureKit's pool, and holding one both starves the pool and
+            // leaves the contents free to be recycled underneath us, so the
+            // heartbeat would resend stale pixels while delivery stalled.
+            //
+            // Throttled because a copy is ~16 MB and only the heartbeat reads it.
+            state.lock()
+            let stale = Date().timeIntervalSince(lastSnapshot) > 0.5
+            state.unlock()
+            if stale, let snapshot = Self.copyPixelBuffer(buffer) {
+                state.lock()
+                lastBuffer = snapshot
+                lastSnapshot = Date()
+                state.unlock()
+            }
+
             guard server?.isConnected == true else { return }
             encodeAndSend(buffer, forceKeyframe: false)
         }, completion: { [weak self] error in
@@ -150,6 +167,43 @@ public final class HostSession {
         }
         timer.resume()
         heartbeat = timer
+    }
+
+    /// Independent copy of a frame, safe to hold after the original returns to
+    /// ScreenCaptureKit's pool.
+    private static func copyPixelBuffer(_ source: CVPixelBuffer) -> CVPixelBuffer? {
+        var copy: CVPixelBuffer?
+        let attributes: [CFString: Any] = [kCVPixelBufferIOSurfacePropertiesKey: [:] as CFDictionary]
+        guard CVPixelBufferCreate(kCFAllocatorDefault,
+                                  CVPixelBufferGetWidth(source),
+                                  CVPixelBufferGetHeight(source),
+                                  CVPixelBufferGetPixelFormatType(source),
+                                  attributes as CFDictionary,
+                                  &copy) == kCVReturnSuccess,
+              let copy else { return nil }
+
+        CVPixelBufferLockBaseAddress(source, .readOnly)
+        CVPixelBufferLockBaseAddress(copy, [])
+        defer {
+            CVPixelBufferUnlockBaseAddress(copy, [])
+            CVPixelBufferUnlockBaseAddress(source, .readOnly)
+        }
+        guard let from = CVPixelBufferGetBaseAddress(source),
+              let to = CVPixelBufferGetBaseAddress(copy) else { return nil }
+
+        // Row by row, because the two buffers can disagree on stride.
+        let fromStride = CVPixelBufferGetBytesPerRow(source)
+        let toStride = CVPixelBufferGetBytesPerRow(copy)
+        let height = CVPixelBufferGetHeight(source)
+        if fromStride == toStride {
+            memcpy(to, from, fromStride * height)
+        } else {
+            let bytes = min(fromStride, toStride)
+            for row in 0..<height {
+                memcpy(to + row * toStride, from + row * fromStride, bytes)
+            }
+        }
+        return copy
     }
 
     private func encodeAndSend(_ buffer: CVPixelBuffer, forceKeyframe: Bool) {
