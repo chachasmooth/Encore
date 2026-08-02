@@ -243,13 +243,33 @@ struct ClientView: View {
     /// as it was when they were created, so a plain @State NSWindow? read back
     /// inside one is whatever it held then, which is nil.
     @State private var windowBox = WindowBox()
+    @State private var diagnostics = "waiting for first frame"
+    @State private var lastFrameAt: Date?
+    @State private var framesShown = 0
     private let layer = AVSampleBufferDisplayLayer()
+    private let diagnosticTick = Timer.publish(every: 1, on: .main, in: .common).autoconnect()
 
     var body: some View {
         ZStack {
             Color.black.ignoresSafeArea()
             if showingVideo {
                 VideoLayerView(layer: layer).ignoresSafeArea()
+                // Deliberately visible over the picture. A blank second screen
+                // has several possible causes and they are indistinguishable by
+                // eye: nothing arriving, arriving but not decoding, or a genuinely
+                // empty desktop. This says which.
+                VStack {
+                    HStack {
+                        Text(diagnostics)
+                            .font(.system(size: 11, design: .monospaced))
+                            .foregroundStyle(.white.opacity(0.75))
+                            .padding(6)
+                            .background(RoundedRectangle(cornerRadius: 6).fill(.black.opacity(0.55)))
+                            .padding(10)
+                        Spacer()
+                    }
+                    Spacer()
+                }
             } else {
                 VStack(spacing: 20) {
                     Text("Enter the code from your other Mac").font(.title2)
@@ -284,6 +304,17 @@ struct ClientView: View {
             }
         }
         .frame(minWidth: 520, minHeight: 320)
+        .onReceive(diagnosticTick) { _ in
+            guard showingVideo else { return }
+            let since = lastFrameAt.map { String(format: "%.1fs ago", Date().timeIntervalSince($0)) } ?? "never"
+            let status: String
+            switch layer.status {
+            case .failed: status = "layer FAILED"
+            case .rendering: status = "rendering"
+            default: status = "idle"
+            }
+            diagnostics = "frames \(framesShown)   last \(since)   \(status)"
+        }
         .background(WindowAccessor { window in
             windowBox.window = window
             // Belt and braces: fullscreen is refused outright on a window that
@@ -327,6 +358,8 @@ struct ClientView: View {
                     session.resyncAfterFlush()
                 }
                 layer.enqueue(sample)
+                framesShown += 1
+                lastFrameAt = Date()
             }
         }
         session.start()
